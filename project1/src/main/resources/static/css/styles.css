@@ -15,5 +15,13 @@ body { margin: 0; }
 .login-card { display: grid; gap: .75rem; padding: 2rem; background: white; border-radius: .75rem; box-shadow: 0 8px 24px #17203318; }
 .login-card h1 { margin: 0; }
 .login-card p { color: #526070; margin: 0 0 .5rem; line-height: 1.5; }
+.login-card p > a { text-decoration: none; color: #325dce;}
+.login-card p > a:hover { text-decoration: none; color: #172033;}
 input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding: .7rem; }
 .login-card .button { margin-top: .5rem; }
+.registrationSmallText {
+    font-size: .8rem;
+    margin: 0;
+    padding: 0;
+    font-style: italic;
+}
