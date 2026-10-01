@@ -15,5 +15,13 @@ body { margin: 0; }
 .login-card { display: grid; gap: .75rem; padding: 2rem; background: white; border-radius: .75rem; box-shadow: 0 8px 24px #17203318; }
 .login-card h1 { margin: 0; }
 .login-card p { color: #526070; margin: 0 0 .5rem; line-height: 1.5; }
+.registrationSmallText { margin: -.5rem 0 0; color: #526070; font-size: .8rem; font-style: italic; }
+.form-message { min-height: 1.25rem; margin: 0 !important; color: #a12622 !important; font-size: .9rem; }
+.form-footer { margin: .25rem 0 0 !important; text-align: center; }
+.form-footer a { color: #325dce; text-decoration: none; }
+.form-footer a:hover { color: #172033; text-decoration: underline; }
 input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding: .7rem; }
 .login-card .button { margin-top: .5rem; }
+.button:disabled { cursor: wait; opacity: .7; }
+#page-message { margin: 7rem auto; padding: 0 1.5rem; color: #526070; text-align: center; }
+[hidden] { display: none !important; }
