@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project 1 | Log in</title>
+  <title>Project 1 | Create account</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -12,16 +12,60 @@
     <a href="/">Home</a>
   </header>
   <main class="login-layout">
-    <form class="login-card" action="/" method="get">
-      <h1>Create an Accont</h1>
+    <form class="login-card" id="registration-form">
+      <h1>Create an account</h1>
       <label for="email">Email</label>
-      <span class="registrationSmallText">Enter a valid email</span>
+      <span class="registrationSmallText">Enter a valid email address.</span>
       <input id="email" name="email" type="email" autocomplete="email" required>
       <label for="password">Password</label>
-      <span class="registrationSmallText">Enter a password with at least 8 characters and one special character</span>
-      <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button class="button" type="submit">Log in</button>
+      <span class="registrationSmallText">Use at least 8 characters and one special character.</span>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" pattern="(?=.*[^A-Za-z0-9]).{8,}" title="Use at least 8 characters and one special character." required>
+      <p class="form-message" id="registration-message" role="alert" aria-live="polite"></p>
+      <button class="button" id="registration-button" type="submit" disabled>Loading sign-up...</button>
+      <p class="form-footer">Already have an account? <a href="login.html">Log in</a></p>
     </form>
   </main>
+  <script>
+    document.querySelector("#registration-form").addEventListener("submit", (event) => event.preventDefault());
+  </script>
+  <script type="module">
+    import { createUserWithEmailAndPassword, firebaseConfigReady } from "./js/firebase-auth.js";
+
+    const form = document.querySelector("#registration-form");
+    const message = document.querySelector("#registration-message");
+    const button = document.querySelector("#registration-button");
+
+    firebaseConfigReady.then(() => {
+      button.disabled = false;
+      button.textContent = "Create account";
+    }).catch(() => {
+      message.textContent = "Sign-up is unavailable. Set FIREBASE_API_KEY in the app environment.";
+      button.textContent = "Sign-up unavailable";
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+
+      message.textContent = "";
+      button.disabled = true;
+      button.textContent = "Creating account...";
+      try {
+        const result = await createUserWithEmailAndPassword(form.email.value, form.password.value);
+        sessionStorage.setItem("firebaseIdToken", result.idToken);
+        window.location.assign("/logged-in.html");
+      } catch (error) {
+        const errors = {
+          EMAIL_EXISTS: "An account with this email already exists.",
+          INVALID_EMAIL: "Enter a valid email address.",
+          WEAK_PASSWORD: "Use at least 8 characters and one special character.",
+          OPERATION_NOT_ALLOWED: "Email and password sign-in is not enabled in Firebase Authentication."
+        };
+        message.textContent = errors[error.message] || "Account creation failed. Check your details and try again.";
+        button.disabled = false;
+        button.textContent = "Create account";
+      }
+    });
+  </script>
 </body>
 </html>

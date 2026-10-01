@@ -12,15 +12,62 @@
     <a href="/">Home</a>
   </header>
   <main class="login-layout">
-    <form class="login-card" action="/" method="get">
+    <form class="login-card" id="login-form">
       <h1>Log in</h1>
+      <p>Sign in with your email and password.</p>
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="email" required>
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button class="button" type="submit">Log in</button>
-      <p>Don't have an account? <a href="./userRegistration.html">Create an account!</a></p>
+      <p class="form-message" id="login-message" role="alert" aria-live="polite"></p>
+      <button class="button" id="login-button" type="submit" disabled>Loading sign-in...</button>
+      <p class="form-footer">New here? <a href="userRegistration.html">Create an account</a></p>
     </form>
   </main>
+  <script>
+    document.querySelector("#login-form").addEventListener("submit", (event) => event.preventDefault());
+  </script>
+  <script type="module">
+    import { firebaseConfigReady, signInWithEmailAndPassword } from "./js/firebase-auth.js";
+
+    const form = document.querySelector("#login-form");
+    const message = document.querySelector("#login-message");
+    const button = document.querySelector("#login-button");
+    const errors = {
+      INVALID_LOGIN_CREDENTIALS: "The email or password is incorrect.",
+      EMAIL_NOT_FOUND: "The email or password is incorrect.",
+      INVALID_PASSWORD: "The email or password is incorrect.",
+      INVALID_EMAIL: "Enter a valid email address.",
+      OPERATION_NOT_ALLOWED: "Email and password sign-in is not enabled in Firebase Authentication.",
+      USER_DISABLED: "This account has been disabled.",
+      TOO_MANY_ATTEMPTS_TRY_LATER: "Too many attempts. Try again later."
+    };
+
+    firebaseConfigReady.then(() => {
+      button.disabled = false;
+      button.textContent = "Log in";
+    }).catch(() => {
+      message.textContent = "Sign-in is unavailable. Set FIREBASE_API_KEY in the app environment.";
+      button.textContent = "Sign-in unavailable";
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+
+      message.textContent = "";
+      button.disabled = true;
+      button.textContent = "Signing in...";
+      try {
+        const result = await signInWithEmailAndPassword(form.email.value, form.password.value);
+        sessionStorage.setItem("firebaseIdToken", result.idToken);
+        window.location.assign("/logged-in.html");
+      } catch (error) {
+        message.textContent = errors[error.message] || "Sign-in failed. Check your details and try again.";
+        button.disabled = false;
+        button.textContent = "Log in";
+      }
+    });
+  </script>
 </body>
 </html>
