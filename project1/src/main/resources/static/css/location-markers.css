@@ -1,0 +1,24 @@
+.location-popup {
+  font-family: Arial, sans-serif;
+  color: #172033;
+  overflow-wrap: anywhere;
+}
+
+.location-popup .location-popup__name {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.location-popup .location-popup__address {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.location-popup .location-popup__types {
+  margin: 0;
+  color: #526070;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
