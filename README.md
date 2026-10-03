@@ -44,3 +44,15 @@ To build and test without starting the server:
 ```powershell
 mvn clean test
 ```
+
+## Location markers (TASK-18)
+
+The reusable location-marker module and an isolated demo are documented in
+[TASK-18 integration](docs/task18-integration.md). The demo uses synthetic places;
+production map, search, and filter integration remain separate tasks.
+
+Run its JavaScript tests from the repository root with Node.js 22:
+
+```sh
+node --experimental-default-type=module --test tests/task18/*.test.mjs
+```

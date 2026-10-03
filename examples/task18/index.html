@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An isolated demonstration of the TASK-18 location marker module using synthetic fixtures.">
+  <title>TASK-18 · Location markers demo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="../../project1/src/main/resources/static/css/location-markers.css">
+  <link rel="stylesheet" href="./demo.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script type="module" src="./demo.js"></script>
+</head>
+<body>
+  <main class="demo-shell">
+    <header class="demo-header">
+      <div>
+        <p class="eyebrow">PROJECT 1 / TASK-18</p>
+        <h1>Places on a map<span aria-hidden="true">.</span></h1>
+        <p class="intro">Add a set of locations. Explore a marker. Replace the results.</p>
+      </div>
+      <span class="demo-badge">Synthetic fixture demo</span>
+    </header>
+
+    <section class="scenario-panel" aria-labelledby="scenario-heading">
+      <div class="scenario-heading">
+        <h2 id="scenario-heading">Try a result set</h2>
+        <p>These buttons load fixed test data. They do not run a search or filter service.</p>
+      </div>
+      <div class="scenario-buttons" aria-label="Fixture scenarios">
+        <button type="button" data-scenario="all" aria-pressed="true" disabled>All locations <span>3</span></button>
+        <button type="button" data-scenario="subset" aria-pressed="false" disabled>Subset <span>1</span></button>
+        <button type="button" data-scenario="alternate" aria-pressed="false" disabled>Replace <span>2</span></button>
+        <button type="button" data-scenario="empty" aria-pressed="false" disabled>Empty set <span>0</span></button>
+        <button type="button" data-scenario="validation" aria-pressed="false" disabled>Validation cases</button>
+      </div>
+      <p id="scenario-description" class="scenario-description">Loading the demonstration…</p>
+    </section>
+
+    <div class="workspace">
+      <section class="map-panel" aria-labelledby="map-heading">
+        <div class="panel-heading">
+          <h2 id="map-heading">Interactive map</h2>
+          <span class="small-label">Click a marker for details</span>
+        </div>
+        <div id="map" aria-label="Interactive map of synthetic fixture locations"></div>
+        <p id="map-notice" class="map-notice" role="status" hidden></p>
+      </section>
+
+      <section class="results-panel" aria-labelledby="results-heading">
+        <div class="panel-heading">
+          <h2 id="results-heading">Displayed locations</h2>
+          <span id="result-count" class="count-badge">0</span>
+        </div>
+        <p class="results-note">Fictional names and addresses at test coordinates.</p>
+        <ul id="locations-list" class="locations-list"></ul>
+        <p id="empty-state" class="empty-state" hidden>No locations in this result set.<br>The map stays available.</p>
+        <div class="selection-panel">
+          <span class="small-label">Selected marker</span>
+          <p id="selection-status" role="status">Select a marker on the map.</p>
+        </div>
+      </section>
+    </div>
+
+    <footer class="demo-footer">
+      <p id="result-status" role="status" aria-live="polite">Waiting for the map.</p>
+      <p>Isolated demo · No account or API key required</p>
+    </footer>
+    <noscript>This demonstration needs JavaScript to display its map and test data.</noscript>
+  </main>
+</body>
+</html>
