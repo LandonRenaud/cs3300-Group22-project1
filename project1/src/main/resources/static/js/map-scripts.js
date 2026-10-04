@@ -4,6 +4,12 @@ let google_map = document.querySelector(".google-map");
 let location_results = document.querySelector(".location-results-list");
 let location_results_empty = document.querySelector(".location-results-empty");
 let location_error = document.querySelector(".location-error");
+let place_keyword = document.querySelector(".map-input-keyword");
+let radius_input = document.querySelector(".map-input-radius");
+let price_input = document.querySelector(".map-input-price");
+let open_now_input = document.querySelector(".map-input-open-now");
+let rank_by_input = document.querySelector(".map-input-rank-by");
+let place_type_input = document.querySelector(".map-input-place-type");
 let nearby_markers = [];
 let target_marker = null;
 let location_info_window = null;
@@ -96,12 +102,27 @@ function find_nearby_locations(location) {
         return;
     }
 
-    const places_service = new google.maps.places.PlacesService(google_map.innerMap);
-    places_service.nearbySearch({
+    const request = {
         location,
-        radius: 5000,
-        type: "point_of_interest"
-    }, (places, status) => {
+        keyword: place_keyword.value.trim() || undefined,
+        openNow: open_now_input.checked,
+        rankBy: rank_by_input.value === "distance"
+            ? google.maps.places.RankBy.DISTANCE
+            : google.maps.places.RankBy.PROMINENCE,
+        type: place_type_input.value
+    };
+
+    if (rank_by_input.value !== "distance") {
+        request.radius = Math.max(1, Number(radius_input.value) || 5000);
+    }
+
+    if (price_input.value !== "") {
+        request.minPriceLevel = Number(price_input.value);
+        request.maxPriceLevel = Number(price_input.value);
+    }
+
+    const places_service = new google.maps.places.PlacesService(google_map.innerMap);
+    places_service.nearbySearch(request, (places, status) => {
         if (status !== google.maps.places.PlacesServiceStatus.OK || !places || places.length === 0) {
             set_location_error("No nearby locations were found.");
             return;
@@ -173,3 +194,9 @@ function recenter_map(event) {
 }
 
 location_form.addEventListener("submit", recenter_map);
+
+rank_by_input.addEventListener("change", () => {
+    const distance_selected = rank_by_input.value === "distance";
+    radius_input.disabled = distance_selected;
+    radius_input.setAttribute("aria-disabled", String(distance_selected));
+});
