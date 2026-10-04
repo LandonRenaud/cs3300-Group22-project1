@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LocalLens</title>
     <script src="js/map-scripts.js" defer></script>
-    <script async src="https://maps.googleapis.com/maps/api/js?loading=async&key=AIzaSyDe4yp8nyLQGsHOS9wQLPMFphX5Ci81jZQ&libraries=maps,marker"></script>
+    <script async src="https://maps.googleapis.com/maps/api/js?loading=async&key=AIzaSyDe4yp8nyLQGsHOS9wQLPMFphX5Ci81jZQ&libraries=maps,marker,places"></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="map-body" hidden>
@@ -20,17 +20,52 @@
         <aside class="map-sidebar">
             <section class="location-search" aria-labelledby="location-search-heading">
                 <h1 id="location-search-heading">Location search</h1>
-                <form class="coordinates-input">
-                    <label for="latitude">Latitude</label>
-                    <input id="latitude" type="number" step="any" placeholder="Enter latitude" class="map-input-latitude" required>
-                    <label for="longitude">Longitude</label>
-                    <input id="longitude" type="number" step="any" placeholder="Enter longitude" class="map-input-longitude" required>
+                <form class="location-input">
+                    <label for="location">Location</label>
+                    <input id="location" type="text" placeholder="Enter an address or place" class="map-input-location" autocomplete="street-address" required>
+                    <label for="place-keyword">What are you looking for?</label>
+                    <input id="place-keyword" type="text" placeholder="e.g. coffee, museums, groceries" class="map-input-keyword" autocomplete="off">
+                    <details class="advanced-settings">
+                        <summary>Advanced Settings</summary>
+                        <label for="radius">Radius (meters)</label>
+                        <input id="radius" type="number" min="1" step="1" value="5000" class="map-input-radius">
+                        <label for="price">Price</label>
+                        <select id="price" class="map-input-price">
+                            <option value="">Any price</option>
+                            <option value="0">Free</option>
+                            <option value="1">$</option>
+                            <option value="2">$$</option>
+                            <option value="3">$$$</option>
+                            <option value="4">$$$$</option>
+                        </select>
+                        <label for="place-type">Place type</label>
+                        <select id="place-type" class="map-input-place-type">
+                            <option value="point_of_interest">Any place</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="bar">Bar</option>
+                            <option value="park">Park</option>
+                            <option value="tourist_attraction">Tourist attraction</option>
+                            <option value="supermarket">Supermarket</option>
+                            <option value="shopping_mall">Shopping mall</option>
+                        </select>
+                        <label class="checkbox-label" for="open-now">
+                            <input id="open-now" type="checkbox" class="map-input-open-now">
+                            Open now
+                        </label>
+                        <label for="rank-by">Rank by</label>
+                        <select id="rank-by" class="map-input-rank-by">
+                            <option value="prominence">Prominence</option>
+                            <option value="distance">Distance</option>
+                        </select>
+                    </details>
+                    <p class="form-message location-error" role="alert" hidden></p>
                     <button type="submit" class="button map-search-button">Search</button>
                 </form>
             </section>
             <section class="location-results" aria-labelledby="location-results-heading">
-                <h2 id="location-results-heading">Location results</h2>
-                <p class="location-results-empty">Search for a location to see it here.</p>
+                <h2 id="location-results-heading">Nearby locations</h2>
+                <p class="location-results-empty">Search for a location to see nearby places here.</p>
                 <ol class="location-results-list"></ol>
             </section>
         </aside>
