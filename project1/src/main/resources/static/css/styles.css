@@ -40,6 +40,8 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .location-error { min-height: 0; margin: .1rem 0 0 !important; }
 .map-panel { min-width: 0; min-height: 0; height: 100%; }
 .google-map { display: block; width: 100%; height: 100%; min-height: 0; overflow: hidden; border-radius: .75rem; box-shadow: 0 8px 24px #17203318; }
+.target-location-pin { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 3px solid white; border-radius: 50% 50% 50% 0; background: #d9342b; box-shadow: 0 2px 8px #17203388; transform: rotate(-45deg); }
+.target-location-pin::after { color: #fff; content: "★"; font-size: 1.25rem; transform: rotate(45deg); }
 .location-results { min-height: 0; max-height: none; overflow-y: auto; }
 .location-results h2 { font-size: 1.15rem; }
 .location-results-empty { color: #526070; margin: 0; }
