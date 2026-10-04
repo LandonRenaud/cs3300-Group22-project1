@@ -55,8 +55,8 @@ mvn clean test
 ## Location markers (TASK-18)
 
 The reusable location-marker module and an isolated demo are documented in
-[TASK-18 integration](docs/task18-integration.md). The demo uses synthetic places;
-production map, search, and filter integration remain separate tasks.
+[TASK-18 integration](docs/task18-integration.md). The production Google Map uses the marker layer for search and filter results.
+The isolated Leaflet demo uses synthetic places and can be run without signing in.
 
 Run its JavaScript tests from the repository root with Node.js 22:
 

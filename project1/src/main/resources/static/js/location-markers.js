@@ -34,6 +34,8 @@ export function normalizeLocations(locations) {
       lat: location.lat,
       lng: location.lng,
       address: typeof location.address === "string" ? location.address.trim() : "",
+      rating: Number.isFinite(location.rating) && location.rating >= 0 && location.rating <= 5
+        ? location.rating : null,
       types: Array.isArray(location.types)
         ? [...new Set(location.types.filter(type => typeof type === "string")
           .map(type => type.trim()).filter(Boolean))]

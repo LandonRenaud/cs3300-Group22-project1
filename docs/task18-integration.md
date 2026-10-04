@@ -4,9 +4,11 @@ TASK-18 owns the location markers, their update/cleanup behavior, selection call
 and requests to fit the map to results. The reusable module is
 `project1/src/main/resources/static/js/location-markers.js`.
 
-The map provider (TASK-14), search requests (TASK-17), and filter rules (TASK-19)
-remain separate. No production page, authentication flow, backend, or database is
-changed by this feature. The example uses synthetic data, not live search results.
+The production integration uses the team's Google Maps component in
+`homepage.html` and the existing search/filter flow in `js/map-scripts.js`.
+`js/google-maps-adapter.js` connects the shared marker layer to Google Advanced
+Markers. Authentication, search/filter request rules, and the starred search-center
+pin are preserved. The separate Leaflet example still uses synthetic data.
 
 ## Location format
 
@@ -18,6 +20,7 @@ changed by this feature. The example uses synthetic data, not live search result
 | `lng` | Required finite number between -180 and 180, inclusive. |
 | `address` | Optional string. |
 | `types` | Optional array of strings. |
+| `rating` | Optional finite number from 0 through 5; other values become `null`. |
 
 Coordinates of zero are valid. Numeric strings must be converted by the search
 response adapter before calling this module. Invalid locations are skipped.
@@ -41,26 +44,41 @@ Pass an adapter for an **already initialized, visible map** to
 - `fitLocations(locations)`: fit a nonempty array of valid places. Use a reasonable
   zoom for one point and cap the zoom when fitting several nearby points.
 
-`examples/task18/leaflet-map-adapter.js` is a working reference for Leaflet 1.9.4.
-It does not choose or initialize the team's production map. Another provider only
-needs an implementation of these two methods. Popup text must be built with text
-nodes or `textContent`, not interpolated into HTML.
+`js/google-maps-adapter.js` is the production adapter. Markers support hover and
+click/keyboard selection, safe text details, and listener/popup cleanup. Its optional
+third `addMarker` argument preserves the search-center pin's custom content and
+z-index. `examples/task18/leaflet-map-adapter.js` remains a Leaflet 1.9.4 reference.
+Both adapters build popup text with DOM nodes and `textContent`.
 
 ## Host page integration
 
-The following snippet assumes the host already has a ready `mapAdapter` and a
-`selectResult` callback for its text list; these are integration points, not
-existing TASK-14/17 APIs:
+The production `map-scripts.js`:
+
+1. Captures the address and filter values when the form is submitted.
+2. Waits for the Google maps, marker, geocoding, and places libraries and the
+   `gmp-map` element before initializing one adapter and location layer.
+3. Keeps the existing search-center behavior and custom starred marker.
+4. Converts Google Places results using `normalizeGooglePlaces(places)`, including
+   `place_id`, `LatLng` methods or literal coordinates, address, types, and rating.
+5. Gives the same normalized collection to the marker layer and the text list,
+   skipping invalid coordinates and duplicate IDs in both views.
+6. Highlights the matching list item when its marker is selected.
+7. Ignores outdated library, geocoder, and Places completions when a newer search
+   has started, and distinguishes empty results from service failures.
+
+All existing keyword, radius, price, open-now, ranking, and type filters are kept.
+Production updates preserve the searched center and do not automatically fit nearby
+results; this keeps the search-center pin in view. Explicit fitting is available to
+other callers:
 
 ```js
 import { createLocationLayer } from "./js/location-markers.js";
+import { createGoogleMapsAdapter } from "./js/google-maps-adapter.js";
 
-const locationLayer = createLocationLayer(mapAdapter, {
-  onSelect: location => selectResult(location.id)
-});
-
-locationLayer.setLocations(searchResults, { fitView: true });
-locationLayer.setLocations(filteredResults);
+const adapter = createGoogleMapsAdapter(googleMapElement.innerMap, google.maps);
+const layer = createLocationLayer(adapter, { onSelect: selectResult });
+layer.setLocations(searchResults);
+layer.setLocations(searchResults, { fitView: true });
 ```
 
 `setLocations` replaces the current markers and returns
@@ -79,10 +97,9 @@ to represent a pending or failed request. Search code must discard stale respons
 before updating the map and list. Both views should receive the same current
 filtered result collection. Display `skippedCount` if records could not be mapped.
 
-TASK-14 should create the map after its container is visible and has a height.
-The current `logged-in.html` starts hidden during authentication, so initialization
-must wait for that page state. If results arrive first, retain the latest collection
-and render it after map readiness; do not create another map for each result update.
+The `homepage.html` body stays hidden until the existing Firebase authentication
+guard succeeds. The map container has a height in the team's stylesheet. Testing
+the isolated demo does not verify authentication or live Google service access.
 
 ## Run the isolated demo
 
@@ -120,6 +137,12 @@ invalid/duplicate input, popup selection, safe display of HTML-like text, and a
 narrow viewport. Repeating a scenario must not add duplicate markers. Replacing
 or clearing the selected place must close its popup.
 
-These checks establish the standalone module and demo. End-to-end TASK-18
-integration still requires the actual TASK-14 map, TASK-17 search results, TASK-19
-filter output, and the team's production page to be tested together.
+The Node tests cover the shared layer, Google adapter, and search integration with
+controlled service responses, including overlapping searches and filter snapshots.
+They do not establish live API quota, key/referrer permissions, or Firebase login.
+For an authenticated end-to-end check, run the app, sign in, search an address,
+change filters, select a marker, and repeat the search. Check that the map and list
+stay aligned and old popups/markers are removed.
+
+Google API references: [Advanced markers](https://developers.google.com/maps/documentation/javascript/reference/advanced-markers)
+and [Map API](https://developers.google.com/maps/documentation/javascript/reference/map).
