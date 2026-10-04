@@ -10,6 +10,25 @@ function set_location_error(message) {
     location_error.hidden = !message;
 }
 
+function add_location_pin(location, name) {
+    const add_pin = () => {
+        if (!google_map.innerMap || !google.maps.marker || !google.maps.marker.AdvancedMarkerElement) {
+            return false;
+        }
+
+        new google.maps.marker.AdvancedMarkerElement({
+            map: google_map.innerMap,
+            position: location,
+            title: name
+        });
+        return true;
+    };
+
+    if (!add_pin()) {
+        google_map.addEventListener("gmp-map-ready", add_pin, { once: true });
+    }
+}
+
 function recenter_map(event) {
 
     event.preventDefault();
@@ -46,6 +65,7 @@ function recenter_map(event) {
         } else {
             google_map.setAttribute("center", `${latitude}, ${longitude}`);
         }
+        add_location_pin(location, geocoded_result.formatted_address);
 
         const result = document.createElement("li");
         result.className = "location-result";
