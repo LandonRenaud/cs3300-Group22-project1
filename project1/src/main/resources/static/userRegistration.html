@@ -8,8 +8,8 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">Project 1</a>
-    <a href="/">Home</a>
+    <a class="brand" href="/landingpage.html">Project 1</a>
+    <a href="/landingpage.html">Log in</a>
   </header>
   <main class="login-layout">
     <form class="login-card" id="registration-form">
@@ -22,7 +22,7 @@
       <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" pattern="(?=.*[^A-Za-z0-9]).{8,}" title="Use at least 8 characters and one special character." required>
       <p class="form-message" id="registration-message" role="alert" aria-live="polite"></p>
       <button class="button" id="registration-button" type="submit" disabled>Loading sign-up...</button>
-      <p class="form-footer">Already have an account? <a href="login.html">Log in</a></p>
+      <p class="form-footer">Already have an account? <a href="landingpage.html">Log in</a></p>
     </form>
   </main>
   <script>
@@ -53,7 +53,7 @@
       try {
         const result = await createUserWithEmailAndPassword(form.email.value, form.password.value);
         sessionStorage.setItem("firebaseIdToken", result.idToken);
-        window.location.assign("/logged-in.html");
+        window.location.assign("/homepage.html");
       } catch (error) {
         const errors = {
           EMAIL_EXISTS: "An account with this email already exists.",
