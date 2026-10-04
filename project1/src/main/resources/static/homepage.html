@@ -1,0 +1,46 @@
+<!-- API key:
+    AIzaSyDe4yp8nyLQGsHOS9wQLPMFphX5Ci81jZQ
+ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalLens</title>
+    <script src="js/map-scripts.js" defer></script>
+    <script async src="https://maps.googleapis.com/maps/api/js?loading=async&key=AIzaSyDe4yp8nyLQGsHOS9wQLPMFphX5Ci81jZQ&libraries=maps,marker"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="map-body" hidden>
+    <header class="site-header">
+        <a class="brand" href="/homepage.html">LocalLens</a>
+    </header>
+    <main class="map-page">
+        <aside class="map-sidebar">
+            <section class="location-search" aria-labelledby="location-search-heading">
+                <h1 id="location-search-heading">Location search</h1>
+                <form class="coordinates-input">
+                    <label for="latitude">Latitude</label>
+                    <input id="latitude" type="number" step="any" placeholder="Enter latitude" class="map-input-latitude" required>
+                    <label for="longitude">Longitude</label>
+                    <input id="longitude" type="number" step="any" placeholder="Enter longitude" class="map-input-longitude" required>
+                    <button type="submit" class="button map-search-button">Search</button>
+                </form>
+            </section>
+            <section class="location-results" aria-labelledby="location-results-heading">
+                <h2 id="location-results-heading">Location results</h2>
+                <p class="location-results-empty">Search for a location to see it here.</p>
+                <ol class="location-results-list"></ol>
+            </section>
+        </aside>
+        <section class="map-panel" aria-label="Map">
+            <gmp-map center="33.7756, -84.3963" zoom="13" map-id="DEMO_MAP_ID" class="google-map"></gmp-map>
+        </section>
+    </main>
+    <script type="module">
+        import { requireAuth } from "./js/auth-guard.js";
+        await requireAuth();
+    </script>
+</body>
+</html>

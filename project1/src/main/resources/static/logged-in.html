@@ -6,7 +6,7 @@
   <title>Project 1 | Signed in</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body hidden>
   <header class="site-header">
     <a class="brand" href="/">Project 1</a>
     <button class="button button-small" id="logout-button" type="button">Log out</button>
@@ -18,27 +18,18 @@
   </main>
   <p id="page-message" role="status" aria-live="polite">Checking your sign-in...</p>
   <script type="module">
-    import { getFirebaseUser } from "./js/firebase-auth.js";
+    import { requireAuth } from "./js/auth-guard.js";
 
-    const token = sessionStorage.getItem("firebaseIdToken");
-    if (!token) {
-      window.location.replace("/login.html");
-    } else {
-      try {
-        const result = await getFirebaseUser(token);
-        if (!result.users?.length) throw new Error("Invalid Firebase user token.");
-        document.querySelector("#user-email").textContent = result.users[0].email;
-        document.querySelector("#signed-in-content").hidden = false;
-        document.querySelector("#page-message").hidden = true;
-      } catch {
-        sessionStorage.removeItem("firebaseIdToken");
-        window.location.replace("/login.html");
-      }
+    const user = await requireAuth();
+    if (user) {
+      document.querySelector("#user-email").textContent = user.email;
+      document.querySelector("#signed-in-content").hidden = false;
+      document.querySelector("#page-message").hidden = true;
     }
 
     document.querySelector("#logout-button").addEventListener("click", () => {
       sessionStorage.removeItem("firebaseIdToken");
-      window.location.assign("/login.html");
+      window.location.assign("/landingpage.html");
     });
   </script>
 </body>

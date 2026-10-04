@@ -8,8 +8,9 @@ From the `project1` directory, start the website:
 mvn spring-boot:run
 ```
 
-Open `http://localhost:8080/` for the landing page or
-`http://localhost:8080/login.html` for the login page. Press `Ctrl+C` to stop
+Open `http://localhost:8080/` or `http://localhost:8080/landingpage.html` for
+the login page. After signing in, the map is available at
+`http://localhost:8080/homepage.html`. Press `Ctrl+C` to stop
 the server.
 
 ## Firebase authentication
@@ -19,11 +20,17 @@ project. Set its Browser Key in the local environment before starting the app:
 
 To find the `firebase-browser-key`, go to the project on Google Cloud and go to "APIs & Services". Here, click on "Credentials" and the key should be able to be seen and able to be copy/pasted under the option titled "Browser key (auto created by Firebase)". 
 
+```powershell
+$env:FIREBASE_API_KEY = "your-firebase-browser-key"
+mvn spring-boot:run
+```
+
 ```sh
 $ export FIREBASE_API_KEY="your-firebase-browser-key"
 $ mvn spring-boot:run
 ```
 
+(Ignore this for local testing)
 For hosting on App Engine, add the key under `env_variables` in `app.yaml`; As so: 
 ```yaml
 runtime: java21

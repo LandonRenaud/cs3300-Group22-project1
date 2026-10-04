@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project 1 | Log in</title>
+  <title>LocalLense | Log in</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">Project 1</a>
-    <a href="/">Home</a>
+    <a class="brand" href="/landingpage.html">LocalLens</a>
   </header>
   <main class="login-layout">
     <form class="login-card" id="login-form">
@@ -61,7 +60,7 @@
       try {
         const result = await signInWithEmailAndPassword(form.email.value, form.password.value);
         sessionStorage.setItem("firebaseIdToken", result.idToken);
-        window.location.assign("/logged-in.html");
+        window.location.assign("/homepage.html");
       } catch (error) {
         message.textContent = errors[error.message] || "Sign-in failed. Check your details and try again.";
         button.disabled = false;
