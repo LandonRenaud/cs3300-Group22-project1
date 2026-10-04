@@ -189,7 +189,6 @@ function recenter_map(event) {
         add_target_pin(location, geocoded_result.formatted_address);
         find_nearby_locations(location);
 
-        map_input_location.value = "";
     });
 }
 
