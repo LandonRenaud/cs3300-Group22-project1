@@ -33,10 +33,11 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .location-search { padding: .8rem 1rem; }
 .location-search h1 { margin: 0 0 .6rem; font-size: 1.25rem; }
 .location-results h2 { margin: 0 0 1rem; }
-.coordinates-input { display: grid; gap: .4rem; }
-.coordinates-input label { font-weight: 700; }
+.location-input { display: grid; gap: .4rem; }
+.location-input label { font-weight: 700; }
 .location-search input { padding: .55rem .65rem; }
-.coordinates-input .button { margin-top: .15rem; padding: .6rem .9rem; }
+.location-input .button { margin-top: .15rem; padding: .6rem .9rem; }
+.location-error { min-height: 0; margin: .1rem 0 0 !important; }
 .map-panel { min-width: 0; min-height: 0; height: 100%; }
 .google-map { display: block; width: 100%; height: 100%; min-height: 0; overflow: hidden; border-radius: .75rem; box-shadow: 0 8px 24px #17203318; }
 .location-results { min-height: 0; max-height: none; overflow-y: auto; }

@@ -20,11 +20,10 @@
         <aside class="map-sidebar">
             <section class="location-search" aria-labelledby="location-search-heading">
                 <h1 id="location-search-heading">Location search</h1>
-                <form class="coordinates-input">
-                    <label for="latitude">Latitude</label>
-                    <input id="latitude" type="number" step="any" placeholder="Enter latitude" class="map-input-latitude" required>
-                    <label for="longitude">Longitude</label>
-                    <input id="longitude" type="number" step="any" placeholder="Enter longitude" class="map-input-longitude" required>
+                <form class="location-input">
+                    <label for="location">Location</label>
+                    <input id="location" type="text" placeholder="Enter an address or place" class="map-input-location" autocomplete="street-address" required>
+                    <p class="form-message location-error" role="alert" hidden></p>
                     <button type="submit" class="button map-search-button">Search</button>
                 </form>
             </section>
