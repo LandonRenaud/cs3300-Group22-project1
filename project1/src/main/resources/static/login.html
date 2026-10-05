@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalLens | Log in</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header landing-header">
+    <a class="brand" href="/landingpage.html"><span class="brand-mark">◒</span> LocalLens</a>
+    <nav class="landing-nav" aria-label="Main navigation">
+      <a href="/login.html">Log in</a>
+      <a href="/userRegistration.html">Register</a>
+    </nav>
+  </header>
+  <main class="login-layout">
+    <form class="login-card" id="login-form">
+      <h1>Welcome back</h1><p>Sign in to keep exploring your neighborhood.</p>
+      <label for="email">Email</label><input id="email" name="email" type="email" required>
+      <label for="password">Password</label><input id="password" name="password" type="password" required>
+      <p class="form-message" id="login-message" role="alert"></p>
+      <button class="button" id="login-button" type="submit" disabled>Loading sign-in...</button>
+      <p class="form-footer">New here? <a href="userRegistration.html">Create an account</a></p>
+    </form>
+  </main>
+  <script type="module">
+    import { firebaseConfigReady, signInWithEmailAndPassword } from "./js/firebase-auth.js";
+    const form = document.querySelector("#login-form");
+    const message = document.querySelector("#login-message");
+    const button = document.querySelector("#login-button");
+    firebaseConfigReady.then(() => { button.disabled = false; button.textContent = "Log in"; }).catch(() => { message.textContent = "Sign-in is unavailable."; });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault(); button.disabled = true;
+      try { const result = await signInWithEmailAndPassword(form.email.value, form.password.value); sessionStorage.setItem("firebaseIdToken", result.idToken); location.assign("/homepage.html"); }
+      catch (error) { message.textContent = "Sign-in failed. Check your details and try again."; button.disabled = false; }
+    });
+  </script>
+</body>
+</html>

@@ -2,71 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LocalLense | Log in</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Discover local places with LocalLens">
+  <title>LocalLens | Discover your neighborhood</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
-  <header class="site-header">
-    <a class="brand" href="/landingpage.html">LocalLens</a>
+<body class="landing-body">
+  <header class="site-header landing-header">
+    <a class="brand" href="/landingpage.html"><span class="brand-mark">◒</span> LocalLens</a>
+    <nav class="landing-nav" aria-label="Main navigation">
+      <a href="#about">About</a>
+      <a href="/login.html">Log in</a>
+      <a href="/userRegistration.html">Register</a>
+    </nav>
   </header>
-  <main class="login-layout">
-    <form class="login-card" id="login-form">
-      <h1>Log in</h1>
-      <p>Sign in with your email and password.</p>
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="email" required>
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <p class="form-message" id="login-message" role="alert" aria-live="polite"></p>
-      <button class="button" id="login-button" type="submit" disabled>Loading sign-in...</button>
-      <p class="form-footer">New here? <a href="userRegistration.html">Create an account</a></p>
-    </form>
+  <main>
+    <section class="landing-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">YOUR CITY, A LITTLE CLOSER</p>
+        <h1>Find your next <em>favorite</em> place.</h1>
+        <p class="hero-lede">LocalLens makes it easy to explore nearby restaurants, parks, shops, and hidden gems—all from one simple map.</p>
+        <div class="hero-actions">
+          <a class="button button-large" href="/userRegistration.html">Start exploring →</a>
+          <a class="text-link" href="#about">See how it works ↓</a>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="map-card">
+          <div class="map-card-top"><span class="map-dot"></span><span class="map-line map-line-long"></span><span class="map-line"></span></div>
+          <span class="map-road road-one"></span><span class="map-road road-two"></span><span class="map-road road-three"></span>
+          <span class="map-pin pin-one">★</span><span class="map-pin pin-two">★</span><span class="map-pin pin-three">★</span>
+          <div class="map-label"><strong>Good finds, nearby</strong><small>Explore around you</small></div>
+        </div>
+      </div>
+    </section>
+    <section class="about-section" id="about">
+      <div class="section-kicker">A BETTER WAY TO WANDER</div>
+      <h2>What is LocalLens?</h2>
+      <p class="about-intro">LocalLens is your personal guide to the places around you. Search by location, tune your preferences, and see what’s worth discovering next.</p>
+      <div class="feature-grid">
+        <article class="feature-card"><span class="feature-icon">⌕</span><h3>Search simply</h3><p>Tell us what you’re looking for and where. We’ll point you in the right direction.</p></article>
+        <article class="feature-card feature-card-highlight"><span class="feature-icon">✦</span><h3>Find your favorites</h3><p>Uncover more of what makes a place feel like home.</p></article>
+        <article class="feature-card"><span class="feature-icon">⌖</span><h3>Explore nearby</h3><p>See your options at a glance and plan your next local adventure.</p></article>
+      </div>
+    </section>
+    <section class="landing-cta">
+      <div><p class="eyebrow">READY WHEN YOU ARE</p><h2>There’s more to discover.</h2></div>
+      <div class="hero-actions"><a class="button button-large" href="/userRegistration.html">Create your account</a><a class="text-link" href="/login.html">Already a member? Log in</a></div>
+    </section>
   </main>
-  <script>
-    document.querySelector("#login-form").addEventListener("submit", (event) => event.preventDefault());
-  </script>
-  <script type="module">
-    import { firebaseConfigReady, signInWithEmailAndPassword } from "./js/firebase-auth.js";
-
-    const form = document.querySelector("#login-form");
-    const message = document.querySelector("#login-message");
-    const button = document.querySelector("#login-button");
-    const errors = {
-      INVALID_LOGIN_CREDENTIALS: "The email or password is incorrect.",
-      EMAIL_NOT_FOUND: "The email or password is incorrect.",
-      INVALID_PASSWORD: "The email or password is incorrect.",
-      INVALID_EMAIL: "Enter a valid email address.",
-      OPERATION_NOT_ALLOWED: "Email and password sign-in is not enabled in Firebase Authentication.",
-      USER_DISABLED: "This account has been disabled.",
-      TOO_MANY_ATTEMPTS_TRY_LATER: "Too many attempts. Try again later."
-    };
-
-    firebaseConfigReady.then(() => {
-      button.disabled = false;
-      button.textContent = "Log in";
-    }).catch(() => {
-      message.textContent = "Sign-in is unavailable. Set FIREBASE_API_KEY in the app environment.";
-      button.textContent = "Sign-in unavailable";
-    });
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (button.disabled) return;
-
-      message.textContent = "";
-      button.disabled = true;
-      button.textContent = "Signing in...";
-      try {
-        const result = await signInWithEmailAndPassword(form.email.value, form.password.value);
-        sessionStorage.setItem("firebaseIdToken", result.idToken);
-        window.location.assign("/homepage.html");
-      } catch (error) {
-        message.textContent = errors[error.message] || "Sign-in failed. Check your details and try again.";
-        button.disabled = false;
-        button.textContent = "Log in";
-      }
-    });
-  </script>
+  <footer class="landing-footer"><span>© 2026 LocalLens</span><span>Made for curious neighbors.</span></footer>
 </body>
 </html>
