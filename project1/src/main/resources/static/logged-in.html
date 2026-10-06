@@ -18,7 +18,7 @@
   </main>
   <p id="page-message" role="status" aria-live="polite">Checking your sign-in...</p>
   <script type="module">
-    import { requireAuth } from "./js/auth-guard.js";
+    import { requireAuth, logOut } from "./js/auth-guard.js";
 
     const user = await requireAuth();
     if (user) {
@@ -27,10 +27,7 @@
       document.querySelector("#page-message").hidden = true;
     }
 
-    document.querySelector("#logout-button").addEventListener("click", () => {
-      sessionStorage.removeItem("firebaseIdToken");
-      window.location.assign("/landingpage.html");
-    });
+    document.querySelector("#logout-button").addEventListener("click", logOut);
   </script>
 </body>
 </html>

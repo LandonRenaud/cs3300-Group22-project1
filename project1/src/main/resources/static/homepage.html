@@ -16,6 +16,7 @@
 <body class="map-body" hidden>
     <header class="site-header">
         <a class="brand" href="/homepage.html">LocalLens</a>
+        <button class="button button-small" id="logout-button" type="button">Log out</button>
     </header>
     <main class="map-page">
         <aside class="map-sidebar">
@@ -72,10 +73,19 @@
         </aside>
         <section class="map-panel" aria-label="Map">
             <gmp-map center="33.7756, -84.3963" zoom="13" map-id="DEMO_MAP_ID" class="google-map"></gmp-map>
+            <section class="location-details" id="location-details" aria-labelledby="location-details-heading" hidden>
+                <button class="location-details-close" type="button" aria-label="Close location details">&times;</button>
+                <h2 id="location-details-heading"></h2>
+                <p class="location-details-address" hidden></p>
+                <p class="location-details-rating" hidden></p>
+                <p class="location-details-types" hidden></p>
+                <p class="location-details-coordinates"></p>
+            </section>
         </section>
     </main>
     <script type="module">
-        import { requireAuth } from "./js/auth-guard.js";
+        import { requireAuth, logOut } from "./js/auth-guard.js";
+        document.querySelector("#logout-button").addEventListener("click", logOut);
         await requireAuth();
     </script>
 </body>

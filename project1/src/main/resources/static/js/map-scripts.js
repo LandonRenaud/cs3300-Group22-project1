@@ -13,6 +13,13 @@ let price_input = document.querySelector(".map-input-price");
 let open_now_input = document.querySelector(".map-input-open-now");
 let rank_by_input = document.querySelector(".map-input-rank-by");
 let place_type_input = document.querySelector(".map-input-place-type");
+let location_details = document.querySelector(".location-details");
+let details_heading = document.querySelector("#location-details-heading");
+let details_address = document.querySelector(".location-details-address");
+let details_rating = document.querySelector(".location-details-rating");
+let details_types = document.querySelector(".location-details-types");
+let details_coordinates = document.querySelector(".location-details-coordinates");
+let details_close = document.querySelector(".location-details-close");
 let nearby_layer = null;
 let map_adapter = null;
 let search_version = 0;
@@ -27,6 +34,7 @@ function select_location(id) {
     for (const result of location_results.children) {
         const selected = result.dataset.locationId === id;
         result.classList.toggle("is-selected", selected);
+        result.querySelector("button")?.setAttribute("aria-pressed", String(selected));
         if (selected) {
             result.setAttribute("aria-current", "true");
             result.scrollIntoView({ block: "nearest" });
@@ -36,7 +44,26 @@ function select_location(id) {
     }
 }
 
+function close_location_details() {
+    location_details.hidden = true;
+    select_location(null);
+}
+
+function show_location_details(place) {
+    select_location(place.id);
+    details_heading.textContent = place.name;
+    details_address.textContent = place.address;
+    details_address.hidden = !place.address;
+    details_rating.textContent = Number.isFinite(place.rating) ? `Rating: ${place.rating}/5` : "";
+    details_rating.hidden = !Number.isFinite(place.rating);
+    details_types.textContent = place.types.join(" · ").replaceAll("_", " ");
+    details_types.hidden = place.types.length === 0;
+    details_coordinates.textContent = `Coordinates: ${place.lat}, ${place.lng}`;
+    location_details.hidden = false;
+}
+
 function clear_nearby_locations() {
+    close_location_details();
     nearby_layer?.clear();
     target_marker?.remove();
     target_marker = null;
@@ -49,7 +76,7 @@ function add_target_pin(location, name) {
     const pin_content = document.createElement("div");
     pin_content.className = "target-location-pin";
     pin_content.setAttribute("aria-label", `Search center: ${name}`);
-    target_marker = map_adapter.addMarker({ ...location, name }, () => select_location(null), {
+    target_marker = map_adapter.addMarker({ ...location, name }, close_location_details, {
         content: pin_content,
         zIndex: 1000
     });
@@ -95,15 +122,22 @@ function render_locations(places, version, bounds = null) {
         const item = document.createElement("li");
         item.className = "location-result";
         item.dataset.locationId = place.id;
+        const button = document.createElement("button");
+        button.className = "location-result-button";
+        button.type = "button";
+        button.setAttribute("aria-controls", "location-details");
+        button.setAttribute("aria-pressed", "false");
         const name = document.createElement("strong");
         name.textContent = place.name;
-        item.append(name);
+        button.append(name);
 
         if (place.address) {
             const address = document.createElement("span");
             address.textContent = place.address;
-            item.append(address);
+            button.append(address);
         }
+        button.addEventListener("click", () => show_location_details(place));
+        item.append(button);
         location_results.append(item);
     }
 }
@@ -211,7 +245,7 @@ async function recenter_map(event) {
         if (!map_adapter) {
             map_adapter = createGoogleMapsAdapter(google_map.innerMap, google.maps);
             nearby_layer = createLocationLayer(map_adapter, {
-                onSelect: location => select_location(location.id)
+                onSelect: show_location_details
             });
         }
     } catch {
@@ -282,6 +316,7 @@ async function recenter_map(event) {
 }
 
 location_form.addEventListener("submit", recenter_map);
+details_close.addEventListener("click", close_location_details);
 
 rank_by_input.addEventListener("change", () => {
     const distance_selected = rank_by_input.value === "distance";
