@@ -23,6 +23,7 @@ class Element {
   replaceChildren() { this.children = []; this.text = ''; }
   setAttribute(name, value) { this.attributes.set(name, value); }
   removeAttribute(name) { this.attributes.delete(name); }
+  querySelector(selector) { return selector === 'button' ? this.children.find(child => child.type === 'button') : null; }
   scrollIntoView() { this.scrolled = true; }
   addEventListener(name, callback) {
     if (!this.listeners.has(name)) this.listeners.set(name, new Set());
@@ -39,16 +40,26 @@ async function setup(t, importLibrary = async () => ({})) {
     'map-input-location', 'location-input', 'google-map', 'location-results-list',
     'location-results-empty', 'location-error', 'map-input-keyword', 'map-input-radius',
     'map-input-price', 'map-input-open-now', 'map-input-rank-by', 'map-input-place-type',
+    'location-details', 'location-details-heading', 'location-details-address',
+    'location-details-rating', 'location-details-types', 'location-details-coordinates',
+    'location-details-close',
   ];
   const elements = Object.fromEntries(selectors.map(name => [name, new Element()]));
+  elements['location-details'].hidden = true;
   elements['map-input-radius'].value = '5000';
   elements['map-input-rank-by'].value = 'prominence';
   elements['map-input-place-type'].value = 'point_of_interest';
   const geocodes = [];
   const searches = [];
+  const textSearches = [];
   const markers = [];
   const windows = [];
-  const map = { centers: [], setCenter(position) { this.centers.push(position); } };
+  const map = {
+    centers: [],
+    setCenter(position) { this.centers.push(position); },
+    getCenter() { return { lat: () => 33.7756, lng: () => -84.3963 }; },
+    getBounds() { return this.bounds; },
+  };
   elements['google-map'].innerMap = map;
   const google = { maps: {
     importLibrary,
@@ -68,6 +79,7 @@ async function setup(t, importLibrary = async () => ({})) {
       PlacesService: class {
         constructor(activeMap) { assert.equal(activeMap, map); }
         nearbySearch(request, callback) { searches.push({ request, callback }); }
+        textSearch(request, callback) { textSearches.push({ request, callback }); }
       },
     },
   } };
@@ -89,7 +101,7 @@ async function setup(t, importLibrary = async () => ({})) {
   });
   await import(`../../project1/src/main/resources/static/js/map-scripts.js?scenario=${++scenario}`);
   return {
-    elements, map, markers, windows, geocodes, searches,
+    elements, map, markers, windows, geocodes, searches, textSearches,
     submit(address) {
       elements['map-input-location'].value = address;
       return elements['location-input'].emit('submit');
@@ -159,7 +171,7 @@ test('map and list show the same valid unique places, retain the target, and sup
   ], 'OK');
   assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['one', 'zero']);
   const results = app.liveMarkers().filter(marker => marker !== target);
-  assert.deepEqual(results.map(marker => marker.title), app.rows().map(row => row.children[0].textContent));
+  assert.deepEqual(results.map(marker => marker.title), app.rows().map(row => row.children[0].children[0].textContent));
   assert.deepEqual(results[1].position, { lat: 0, lng: 0 });
   assert.equal(target.map, app.map);
   assert.equal(target.zIndex, 1000);
@@ -169,12 +181,41 @@ test('map and list show the same valid unique places, retain the target, and sup
   await results[1].emit('gmp-click');
   assert.equal(app.rows()[1].attributes.get('aria-current'), 'true');
   assert.equal(app.rows()[1].scrolled, true);
+  assert.equal(app.elements['location-details'].hidden, false);
+  assert.equal(app.elements['location-details-heading'].textContent, 'Zero coordinates');
   assert.equal(app.windows[0].options.anchor, results[1]);
   await results[0].emit('gmp-click');
   assert.equal(app.rows()[1].attributes.has('aria-current'), false);
   assert.equal(app.rows()[0].classes.has('is-selected'), true);
   await target.emit('gmp-click');
   assert.ok(app.rows().every(row => !row.classes.has('is-selected')));
+  assert.equal(app.elements['location-details'].hidden, true);
+});
+
+test('listing clicks show details, closing clears selection, and a new search hides old details', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta center');
+  app.searches[0].callback([{
+    ...place('cafe', 'Cafe Corner'), rating: 4.5, types: ['cafe', 'food'],
+  }], 'OK');
+  const button = app.rows()[0].children[0];
+  assert.equal(button.type, 'button');
+  await button.emit('click');
+  assert.equal(app.elements['location-details'].hidden, false);
+  assert.equal(app.elements['location-details-heading'].textContent, 'Cafe Corner');
+  assert.equal(app.elements['location-details-address'].textContent, 'Atlanta');
+  assert.equal(app.elements['location-details-rating'].textContent, 'Rating: 4.5/5');
+  assert.equal(app.elements['location-details-types'].textContent, 'cafe · food');
+  assert.equal(button.attributes.get('aria-pressed'), 'true');
+
+  await app.elements['location-details-close'].emit('click');
+  assert.equal(app.elements['location-details'].hidden, true);
+  assert.equal(button.attributes.get('aria-pressed'), 'false');
+  await button.emit('click');
+  await app.submit('New address');
+  assert.equal(app.elements['location-details'].hidden, true);
+  assert.equal(app.rows().length, 0);
 });
 
 test('a late geocoder response cannot replace the latest search center or results', async t => {
@@ -244,4 +285,42 @@ test('empty searches show an empty state while failed searches show an error', a
   assert.equal(app.elements['location-error'].hidden, false);
   assert.match(app.elements['location-error'].textContent, /search failed/);
   assert.deepEqual(app.liveMarkers().map(marker => marker.title), ['Failure center']);
+});
+
+test('place-name search displays only matches inside the visible map', async t => {
+  const app = await setup(t);
+  app.map.bounds = {
+    contains: ({ lat, lng }) => lat > 33 && lat < 34 && lng > -85 && lng < -84,
+  };
+  await app.submit('El Tesoro');
+  assert.equal(app.geocodes.length, 0);
+  assert.equal(app.textSearches[0].request.query, 'El Tesoro');
+  assert.equal(app.textSearches[0].request.bounds, app.map.bounds);
+  app.textSearches[0].callback([
+    place('local', 'El Tesoro', 33.78, -84.4),
+    place('distant', 'El Tesoro', 41.4, 2.2),
+  ], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local']);
+  assert.deepEqual(app.liveMarkers().map(marker => marker.title), ['El Tesoro']);
+});
+
+test('coordinates recenter the map and search around the new point', async t => {
+  const app = await setup(t);
+  app.map.bounds = { contains: () => false };
+  await app.submit('40.75, -73.99');
+  assert.deepEqual(app.map.centers, [{ lat: 40.75, lng: -73.99 }]);
+  assert.deepEqual(app.searches[0].request.location, { lat: 40.75, lng: -73.99 });
+  app.searches[0].callback([place('new', 'New York place', 40.751, -73.991)], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['new']);
+});
+
+test('keyword alone searches from the map center within the visible bounds', async t => {
+  const app = await setup(t);
+  app.map.bounds = { contains: ({ lat }) => lat > 33 && lat < 34 };
+  app.elements['map-input-keyword'].value = 'coffee';
+  await app.submit('');
+  assert.equal(app.searches[0].request.keyword, 'coffee');
+  assert.deepEqual(app.searches[0].request.location, { lat: 33.7756, lng: -84.3963 });
+  app.searches[0].callback([place('local'), place('distant', 'Far away', 40, -73)], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local']);
 });

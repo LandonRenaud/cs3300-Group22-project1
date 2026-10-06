@@ -6,7 +6,7 @@
   <title>LocalLens | Log in</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body hidden>
   <header class="site-header landing-header">
     <a class="brand" href="/landingpage.html"><span class="brand-mark">◒</span> LocalLens</a>
     <nav class="landing-nav" aria-label="Main navigation">
@@ -26,10 +26,20 @@
   </main>
   <script type="module">
     import { firebaseConfigReady, signInWithEmailAndPassword } from "./js/firebase-auth.js";
+    import { redirectIfAuthenticated } from "./js/auth-guard.js";
     const form = document.querySelector("#login-form");
     const message = document.querySelector("#login-message");
     const button = document.querySelector("#login-button");
-    firebaseConfigReady.then(() => { button.disabled = false; button.textContent = "Log in"; }).catch(() => { message.textContent = "Sign-in is unavailable."; });
+    window.addEventListener("pagehide", () => { document.body.hidden = true; });
+    window.addEventListener("pageshow", async (event) => {
+      if (!event.persisted) return;
+      document.body.hidden = true;
+      if (!(await redirectIfAuthenticated())) document.body.hidden = false;
+    });
+    if (!(await redirectIfAuthenticated())) {
+      document.body.hidden = false;
+      firebaseConfigReady.then(() => { button.disabled = false; button.textContent = "Log in"; }).catch(() => { message.textContent = "Sign-in is unavailable."; });
+    }
     form.addEventListener("submit", async (event) => {
       event.preventDefault(); button.disabled = true;
       try { const result = await signInWithEmailAndPassword(form.email.value, form.password.value); sessionStorage.setItem("firebaseIdToken", result.idToken); location.assign("/homepage.html"); }

@@ -13,6 +13,13 @@ let price_input = document.querySelector(".map-input-price");
 let open_now_input = document.querySelector(".map-input-open-now");
 let rank_by_input = document.querySelector(".map-input-rank-by");
 let place_type_input = document.querySelector(".map-input-place-type");
+let location_details = document.querySelector(".location-details");
+let details_heading = document.querySelector("#location-details-heading");
+let details_address = document.querySelector(".location-details-address");
+let details_rating = document.querySelector(".location-details-rating");
+let details_types = document.querySelector(".location-details-types");
+let details_coordinates = document.querySelector(".location-details-coordinates");
+let details_close = document.querySelector(".location-details-close");
 let nearby_layer = null;
 let map_adapter = null;
 let search_version = 0;
@@ -27,6 +34,7 @@ function select_location(id) {
     for (const result of location_results.children) {
         const selected = result.dataset.locationId === id;
         result.classList.toggle("is-selected", selected);
+        result.querySelector("button")?.setAttribute("aria-pressed", String(selected));
         if (selected) {
             result.setAttribute("aria-current", "true");
             result.scrollIntoView({ block: "nearest" });
@@ -36,7 +44,26 @@ function select_location(id) {
     }
 }
 
+function close_location_details() {
+    location_details.hidden = true;
+    select_location(null);
+}
+
+function show_location_details(place) {
+    select_location(place.id);
+    details_heading.textContent = place.name;
+    details_address.textContent = place.address;
+    details_address.hidden = !place.address;
+    details_rating.textContent = Number.isFinite(place.rating) ? `Rating: ${place.rating}/5` : "";
+    details_rating.hidden = !Number.isFinite(place.rating);
+    details_types.textContent = place.types.join(" · ").replaceAll("_", " ");
+    details_types.hidden = place.types.length === 0;
+    details_coordinates.textContent = `Coordinates: ${place.lat}, ${place.lng}`;
+    location_details.hidden = false;
+}
+
 function clear_nearby_locations() {
+    close_location_details();
     nearby_layer?.clear();
     target_marker?.remove();
     target_marker = null;
@@ -49,7 +76,7 @@ function add_target_pin(location, name) {
     const pin_content = document.createElement("div");
     pin_content.className = "target-location-pin";
     pin_content.setAttribute("aria-label", `Search center: ${name}`);
-    target_marker = map_adapter.addMarker({ ...location, name }, () => select_location(null), {
+    target_marker = map_adapter.addMarker({ ...location, name }, close_location_details, {
         content: pin_content,
         zIndex: 1000
     });
@@ -66,7 +93,56 @@ function get_search_options() {
     };
 }
 
-function find_nearby_locations(location, options, version) {
+function get_visible_bounds() {
+    return google_map.innerMap?.getBounds?.() || null;
+}
+
+function is_in_visible_bounds(place, bounds) {
+    if (!bounds) return true;
+    return bounds.contains({ lat: place.lat, lng: place.lng });
+}
+
+function render_locations(places, version, bounds = null) {
+    if (version !== search_version) return;
+    const result = normalizeGooglePlaces(places);
+    const scopedLocations = result.locations.filter(place => is_in_visible_bounds(place, bounds));
+    try {
+        nearby_layer.setLocations(scopedLocations);
+    } catch {
+        set_location_error("Nearby locations could not be displayed. Please try again.");
+        return;
+    }
+    location_results.replaceChildren();
+    location_results_empty.hidden = scopedLocations.length > 0;
+    location_results_empty.textContent = "No nearby locations were found in the visible map area.";
+    if (result.skippedCount > 0) {
+        set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
+    }
+    for (const place of scopedLocations) {
+        const item = document.createElement("li");
+        item.className = "location-result";
+        item.dataset.locationId = place.id;
+        const button = document.createElement("button");
+        button.className = "location-result-button";
+        button.type = "button";
+        button.setAttribute("aria-controls", "location-details");
+        button.setAttribute("aria-pressed", "false");
+        const name = document.createElement("strong");
+        name.textContent = place.name;
+        button.append(name);
+
+        if (place.address) {
+            const address = document.createElement("span");
+            address.textContent = place.address;
+            button.append(address);
+        }
+        button.addEventListener("click", () => show_location_details(place));
+        item.append(button);
+        location_results.append(item);
+    }
+}
+
+function find_nearby_locations(location, options, version, bounds = null) {
     if (!google.maps.places || !google.maps.places.PlacesService) {
         set_location_error("Nearby location search is temporarily unavailable. Please try again.");
         return;
@@ -104,34 +180,38 @@ function find_nearby_locations(location, options, version) {
             return;
         }
 
-        const result = normalizeGooglePlaces(places);
-        try {
-            nearby_layer.setLocations(result.locations);
-        } catch {
-            set_location_error("Nearby locations could not be displayed. Please try again.");
+        render_locations(places, version, bounds);
+    });
+}
+
+function parse_coordinates(value) {
+    const match = value.trim().match(/^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (!match) return null;
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? { lat, lng } : null;
+}
+
+function search_place_name(query, options, version, bounds) {
+    const places_service = new google.maps.places.PlacesService(google_map.innerMap);
+    const textQuery = [query, options.keyword].filter(Boolean).join(" ");
+    const request = { query: textQuery, bounds, type: options.type };
+    places_service.textSearch(request, (places, status) => {
+        if (version !== search_version) return;
+        if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            nearby_layer.setLocations([]);
+            location_results_empty.textContent = "No matching locations were found in the visible map area.";
             return;
         }
-        location_results.replaceChildren();
-        location_results_empty.hidden = result.locations.length > 0;
-        location_results_empty.textContent = "No nearby locations were found.";
-        if (result.skippedCount > 0) {
-            set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !Array.isArray(places)) {
+            set_location_error("Location search failed. Try a more specific place name.");
+            return;
         }
-        for (const place of result.locations) {
-            const item = document.createElement("li");
-            item.className = "location-result";
-            item.dataset.locationId = place.id;
-            const name = document.createElement("strong");
-            name.textContent = place.name;
-            item.append(name);
-
-            if (place.address) {
-                const address = document.createElement("span");
-                address.textContent = place.address;
-                item.append(address);
-            }
-            location_results.append(item);
-        }
+        const filteredPlaces = places.filter(place =>
+            (!options.openNow || place.opening_hours?.open_now === true) &&
+            (options.price === "" || place.price_level === Number(options.price))
+        );
+        render_locations(filteredPlaces, version, bounds);
     });
 }
 
@@ -145,7 +225,7 @@ async function recenter_map(event) {
     set_location_error("");
     clear_nearby_locations();
 
-    if (!address) {
+    if (!address && !options.keyword) {
         set_location_error("Enter a location to search.");
         return;
     }
@@ -165,7 +245,7 @@ async function recenter_map(event) {
         if (!map_adapter) {
             map_adapter = createGoogleMapsAdapter(google_map.innerMap, google.maps);
             nearby_layer = createLocationLayer(map_adapter, {
-                onSelect: location => select_location(location.id)
+                onSelect: show_location_details
             });
         }
     } catch {
@@ -175,8 +255,39 @@ async function recenter_map(event) {
         return;
     }
 
+    const visibleBounds = get_visible_bounds();
+    const coordinates = parse_coordinates(address);
+    if (!address) {
+        const center = google_map.innerMap.getCenter?.();
+        const location = center && typeof center.lat === "function"
+            ? { lat: center.lat(), lng: center.lng() }
+            : center;
+        if (!location) {
+            set_location_error("The map center is not available yet. Please try again.");
+            return;
+        }
+        find_nearby_locations(location, options, version, visibleBounds);
+        return;
+    }
+
+    if (coordinates) {
+        google_map.innerMap.setCenter(coordinates);
+        add_target_pin(coordinates, `${coordinates.lat}, ${coordinates.lng}`);
+        // The map is being moved to this new point. Do not use the old
+        // viewport bounds while the Google map is still updating; the nearby
+        // search radius is the scope for this coordinate search.
+        find_nearby_locations(coordinates, options, version);
+        return;
+    }
+
+    // A plain name is a Places query, not an address to geocode globally.
+    if (visibleBounds && !/\d/.test(address)) {
+        search_place_name(address, options, version, visibleBounds);
+        return;
+    }
+
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address }, (results, status) => {
+    geocoder.geocode({ address, ...(visibleBounds ? { bounds: visibleBounds } : {}) }, (results, status) => {
         if (version !== search_version) return;
         if (status !== "OK" || !results || results.length === 0) {
             set_location_error("Location not found. Try a more specific address or place.");
@@ -189,6 +300,14 @@ async function recenter_map(event) {
         const longitude = coordinates.lng();
         const location = { lat: latitude, lng: longitude };
 
+        // A place-name geocode can resolve to an unrelated city or country. When
+        // the result is outside the map's current scope, use Places text search
+        // with the visible bounds instead of accepting that distant result.
+        if (!options.keyword && visibleBounds && !visibleBounds.contains(location)) {
+            search_place_name(address, options, version, visibleBounds);
+            return;
+        }
+
         google_map.innerMap.setCenter(location);
         add_target_pin(location, geocoded_result.formatted_address);
         find_nearby_locations(location, options, version);
@@ -197,6 +316,7 @@ async function recenter_map(event) {
 }
 
 location_form.addEventListener("submit", recenter_map);
+details_close.addEventListener("click", close_location_details);
 
 rank_by_input.addEventListener("change", () => {
     const distance_selected = rank_by_input.value === "distance";
