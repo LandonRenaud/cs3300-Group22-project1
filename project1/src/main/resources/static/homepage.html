@@ -80,13 +80,40 @@
                 <p class="location-details-rating" hidden></p>
                 <p class="location-details-types" hidden></p>
                 <p class="location-details-coordinates"></p>
+                <section class="location-reviews" aria-labelledby="reviews-heading">
+                    <h3 id="reviews-heading">Community reviews</h3>
+                    <p class="reviews-status" role="status">Select a location to view reviews.</p>
+                    <ol class="reviews-list"></ol>
+                    <button class="button button-small review-open-button" type="button" hidden>Write a review</button>
+                    <form class="review-form" hidden>
+                        <label for="review-author">Name (optional)</label>
+                        <input id="review-author" name="author" type="text" maxlength="80" autocomplete="name" placeholder="Anonymous LocalLens User">
+                        <label for="review-rating">Your rating</label>
+                        <select id="review-rating" name="rating" required>
+                            <option value="">Choose a rating</option>
+                            <option value="5">5 – Excellent</option>
+                            <option value="4">4 – Good</option>
+                            <option value="3">3 – Average</option>
+                            <option value="2">2 – Poor</option>
+                            <option value="1">1 – Terrible</option>
+                        </select>
+                        <label for="review-comment">Your review</label>
+                        <textarea id="review-comment" name="comment" maxlength="2000" rows="4" required></textarea>
+                        <p class="review-form-message" role="alert" hidden></p>
+                        <div class="review-form-actions">
+                            <button class="button button-small" type="submit">Submit review</button>
+                            <button class="review-cancel-button" type="button">Cancel</button>
+                        </div>
+                    </form>
+                </section>
             </section>
         </section>
     </main>
     <script type="module">
         import { requireAuth, logOut } from "./js/auth-guard.js";
         document.querySelector("#logout-button").addEventListener("click", logOut);
-        await requireAuth();
+        const user = await requireAuth();
+        if (user) document.dispatchEvent(new CustomEvent("firebase-user-ready", { detail: user }));
     </script>
 </body>
 </html>
