@@ -11,9 +11,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class FirebaseConfigController {
     private final String apiKey;
+    private final String databaseUrl;
 
-    public FirebaseConfigController(@Value("${FIREBASE_API_KEY:}") String apiKey) {
+    public FirebaseConfigController(
+            @Value("${FIREBASE_API_KEY:}") String apiKey,
+            @Value("${FIREBASE_DATABASE_URL:}") String databaseUrl) {
         this.apiKey = apiKey;
+        this.databaseUrl = databaseUrl;
     }
 
     @GetMapping("/api/firebase-config")
@@ -22,6 +26,9 @@ public class FirebaseConfigController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("error", "Firebase API key is not configured."));
         }
-        return ResponseEntity.ok(Map.of("apiKey", apiKey));
+        if (databaseUrl.isBlank()) {
+            return ResponseEntity.ok(Map.of("apiKey", apiKey));
+        }
+        return ResponseEntity.ok(Map.of("apiKey", apiKey, "databaseUrl", databaseUrl));
     }
 }
