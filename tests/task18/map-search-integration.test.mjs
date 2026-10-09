@@ -42,7 +42,8 @@ async function setup(t, importLibrary = async () => ({})) {
     'map-input-price', 'map-input-open-now', 'map-input-rank-by', 'map-input-place-type',
     'location-details', 'location-details-heading', 'location-details-address',
     'location-details-rating', 'location-details-types', 'location-details-coordinates',
-    'location-details-close',
+    'location-details-close', 'reviews-status', 'reviews-list', 'review-open-button',
+    'review-form', 'review-form-message', 'review-cancel-button',
   ];
   const elements = Object.fromEntries(selectors.map(name => [name, new Element()]));
   elements['location-details'].hidden = true;
@@ -89,6 +90,12 @@ async function setup(t, importLibrary = async () => ({})) {
     document: {
       querySelector: selector => elements[selector.slice(1)],
       createElement: () => new Element(),
+      addEventListener() {},
+      dispatchEvent() { return true; },
+    },
+    fetch: async url => {
+      assert.equal(url, '/api/firebase-config');
+      return { ok: true, json: async () => ({ apiKey: 'test-key' }) };
     },
   };
   const original = Object.fromEntries(Object.keys(globals).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
