@@ -27,7 +27,7 @@ jobs:
         run: mvn --batch-mode test
 
   location-marker-tests:
-    name: Location Marker Tests
+    name: JavaScript Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -39,5 +39,5 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run location marker tests
-        run: node --experimental-default-type=module --test tests/task18/*.test.mjs
+      - name: Run JavaScript tests
+        run: node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
