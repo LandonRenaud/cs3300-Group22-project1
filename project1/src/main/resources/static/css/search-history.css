@@ -1,0 +1,155 @@
+.map-sidebar {
+  grid-template-rows: minmax(0, auto) minmax(9rem, 1fr);
+}
+
+.location-search {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.search-history {
+  margin-top: .8rem;
+  padding-top: .7rem;
+  border-top: 1px solid #dbe1ea;
+  font-size: .85rem;
+  overflow-wrap: anywhere;
+}
+
+.search-history summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: .2rem 0;
+}
+
+.search-history-count {
+  color: #526070;
+  font-weight: 400;
+}
+
+.search-history-storage,
+.search-history-empty,
+.search-history-warning {
+  margin: .55rem 0;
+  color: #526070;
+  line-height: 1.5;
+}
+
+.search-history-warning {
+  padding: .55rem;
+  border: 1px solid #e4c996;
+  border-radius: .4rem;
+  background: #fff7e8;
+  color: #765018;
+}
+
+.search-history-list {
+  display: grid;
+  gap: .5rem;
+  max-height: 13rem;
+  margin: .5rem 0 0;
+  padding: 0 .15rem .15rem 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.search-history-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  border: 1px solid #dbe1ea;
+  border-radius: .45rem;
+  background: #f7f9fc;
+}
+
+.search-history button {
+  color: #19332e;
+  cursor: pointer;
+  font: inherit;
+}
+
+.search-history-replay {
+  display: grid;
+  gap: .3rem;
+  min-width: 0;
+  width: 100%;
+  padding: .65rem;
+  border: 0;
+  border-radius: .4rem;
+  background: transparent;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.search-history-replay strong {
+  line-height: 1.4;
+}
+
+.search-history-filters,
+.search-history-time {
+  color: #526070;
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.search-history-remove {
+  width: 2rem;
+  min-height: 2rem;
+  margin: .3rem .2rem 0 0;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  font-size: 1.25rem !important;
+}
+
+.search-history-clear {
+  min-height: 2rem;
+  padding: .3rem .6rem;
+  border: 1px solid #b7c1d0;
+  border-radius: .35rem;
+  background: white;
+}
+
+.search-history button:hover {
+  background: #e9eef2;
+}
+
+.search-history button:focus-visible,
+.search-history summary:focus-visible {
+  outline: 2px solid #325dce;
+  outline-offset: 2px;
+}
+
+.search-history-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .map-body {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .map-body .map-page {
+    height: auto;
+    grid-template-rows: auto minmax(360px, 60vh);
+  }
+
+  .map-sidebar {
+    grid-template-rows: auto minmax(180px, 30vh);
+  }
+
+  .location-search {
+    overflow-y: visible;
+  }
+
+  .search-history-list {
+    max-height: 12rem;
+  }
+}

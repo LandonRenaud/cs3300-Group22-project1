@@ -63,3 +63,16 @@ Run its JavaScript tests from the repository root with Node.js 22:
 ```sh
 node --experimental-default-type=module --test tests/task18/*.test.mjs
 ```
+
+## Search history (TASK-20)
+
+Signed-in users can reopen recent searches, restore their filters and map area,
+and remove individual entries or clear their history. The latest 10 searches
+are saved per account in the current browser. See
+[TASK-20 behavior and verification](docs/task20-search-history.md).
+
+Run all JavaScript tests with Node.js 22:
+
+```sh
+node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+```
