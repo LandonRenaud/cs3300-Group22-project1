@@ -49,9 +49,17 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     'location-details-rating', 'location-details-types', 'location-details-coordinates',
     'location-details-close', 'search-history', 'search-history-count', 'search-history-list',
     'search-history-empty', 'search-history-clear', 'search-history-storage',
-    'search-history-warning', 'search-history-status', 'summary',
+    'search-history-warning', 'search-history-status', 'summary', 'reviews-status',
+    'reviews-list', 'review-open-button', 'review-form', 'review-form-message',
+    'review-cancel-button', 'review-author', 'review-rating', 'review-comment',
   ];
   const elements = Object.fromEntries(selectors.map(name => [name, new Element()]));
+  elements['review-form'].elements = {
+    author: elements['review-author'],
+    rating: elements['review-rating'],
+    comment: elements['review-comment'],
+  };
+  elements['review-form'].append(elements['review-rating']);
   elements['location-details'].hidden = true;
   elements['map-input-radius'].value = '5000';
   elements['map-input-rank-by'].value = 'prominence';
@@ -104,12 +112,27 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
   } };
   const window = new Element();
   window.google = google;
+  const documentListeners = new Map();
+  const document = {
+    querySelector: selector => elements[selector.slice(1)],
+    createElement: () => { const element = new Element(); element.ownerDocument = document; return element; },
+    addEventListener(name, callback) {
+      if (!documentListeners.has(name)) documentListeners.set(name, new Set());
+      documentListeners.get(name).add(callback);
+    },
+    removeEventListener(name, callback) { documentListeners.get(name)?.delete(callback); },
+    dispatchEvent(event) {
+      for (const callback of documentListeners.get(event.type) || []) callback(event);
+      return true;
+    },
+  };
   const globals = {
     google, window, localStorage: storage,
     customElements: { whenDefined: async name => assert.equal(name, 'gmp-map') },
-    document: {
-      querySelector: selector => elements[selector.slice(1)],
-      createElement: () => { const element = new Element(); element.ownerDocument = globals.document; return element; },
+    document,
+    fetch: async url => {
+      assert.equal(url, '/api/firebase-config');
+      return { ok: true, json: async () => ({ apiKey: 'test-key' }) };
     },
   };
   for (const element of Object.values(elements)) element.ownerDocument = globals.document;
