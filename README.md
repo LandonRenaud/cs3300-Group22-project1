@@ -13,6 +13,22 @@ the login page. After signing in, the map is available at
 `http://localhost:8080/homepage.html`. Press `Ctrl+C` to stop
 the server.
 
+## Google Maps API
+
+Set the Google Maps browser key in the local environment before starting the
+app. Restrict the key to the Maps JavaScript API and the website referrers used
+by the app.
+
+```powershell
+$env:GOOGLE_MAPS_API_KEY = "your-google-maps-browser-key"
+mvn spring-boot:run
+```
+
+```sh
+$ export GOOGLE_MAPS_API_KEY="your-google-maps-browser-key"
+$ mvn spring-boot:run
+```
+
 ## Firebase authentication
 
 Enable **Authentication > Sign-in method > Email/Password** in the Firebase
@@ -63,8 +79,8 @@ Place ID as the location key. Reviewers can leave the name blank to appear as
 deleting reviews. Review reads/writes require the Firebase ID token already
 stored by the existing sign-in flow.
 
-For App Engine, configure `FIREBASE_DATABASE_URL` alongside `FIREBASE_API_KEY`
-in `app.yaml`'s `env_variables`.
+For App Engine, configure `GOOGLE_MAPS_API_KEY`, `FIREBASE_API_KEY`, and
+`FIREBASE_DATABASE_URL` in `app.yaml`'s `env_variables`.
 
 (Ignore this for local testing)
 For hosting on App Engine, add the key under `env_variables` in `app.yaml`; As so: 
@@ -74,6 +90,7 @@ env: standard
 env_variables:
     FIREBASE_API_KEY: "your-browser-key"
     FIREBASE_DATABASE_URL: "https://your-project-default-rtdb.firebaseio.com"
+    GOOGLE_MAPS_API_KEY: "your-google-maps-browser-key"
 service: default
 ```
 

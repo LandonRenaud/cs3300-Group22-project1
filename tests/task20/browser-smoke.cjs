@@ -45,6 +45,7 @@ customElements.define('gmp-map',MapElement);
  const server = http.createServer(async(req,res)=>{
    const name = new URL(req.url,'http://localhost').pathname;
    if(name==='/api/firebase-config'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({apiKey:'fixture'}));return;}
+   if(name==='/api/map-config'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({apiKey:'fixture-maps'}));return;}
    try {
      const file = path.resolve(root,'.'+name);
      if(!file.startsWith(root+'/')) throw new Error('Invalid file');

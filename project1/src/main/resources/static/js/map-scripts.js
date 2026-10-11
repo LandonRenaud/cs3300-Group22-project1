@@ -1,5 +1,6 @@
 import { createLocationLayer } from "./location-markers.js";
 import { createGoogleMapsAdapter, normalizeGooglePlaces } from "./google-maps-adapter.js";
+import { loadGoogleMaps } from "./google-maps-loader.js";
 import "./location-reviews.js";
 import { createSearchHistoryStore } from "./search-history-store.js";
 import { createSearchHistoryView } from "./search-history-view.js";
@@ -30,6 +31,7 @@ let target_marker = null;
 let history_store = null;
 let history_view = null;
 let history_revision = 0;
+const googleMapsReady = loadGoogleMaps().then(() => true, () => false);
 
 function render_search_history() {
     if (history_store && history_view) {
@@ -303,7 +305,7 @@ async function recenter_map(event, restored_context = null) {
         return;
     }
 
-    if (!window.google?.maps?.importLibrary) {
+    if (!await googleMapsReady) {
         set_location_error("Location search is temporarily unavailable. Please try again.");
         return;
     }
