@@ -12,6 +12,7 @@
     <script async src="https://maps.googleapis.com/maps/api/js?loading=async&key=AIzaSyDe4yp8nyLQGsHOS9wQLPMFphX5Ci81jZQ&libraries=maps,marker,places"></script>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/location-markers.css">
+    <link rel="stylesheet" href="css/search-history.css">
 </head>
 <body class="map-body" hidden>
     <header class="site-header">
@@ -64,6 +65,15 @@
                     <p class="form-message location-error" role="alert" hidden></p>
                     <button type="submit" class="button map-search-button">Search</button>
                 </form>
+                <details class="search-history" hidden>
+                    <summary>Search history <span class="search-history-count">(0)</span></summary>
+                    <p class="search-history-storage">Saved in this browser for your account.</p>
+                    <p class="search-history-warning" role="status" hidden>Browser storage is unavailable. History is kept for this page only.</p>
+                    <button class="search-history-clear" type="button" hidden>Clear all</button>
+                    <p class="search-history-empty">Your searches will appear here. Select one to search again.</p>
+                    <ol class="search-history-list" aria-label="Recent searches"></ol>
+                    <p class="search-history-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                </details>
             </section>
             <section class="location-results" aria-labelledby="location-results-heading">
                 <h2 id="location-results-heading">Nearby locations</h2>
@@ -85,8 +95,10 @@
     </main>
     <script type="module">
         import { requireAuth, logOut } from "./js/auth-guard.js";
+        import { initializeSearchHistory } from "./js/map-scripts.js";
         document.querySelector("#logout-button").addEventListener("click", logOut);
-        await requireAuth();
+        const user = await requireAuth();
+        if (user) initializeSearchHistory(user);
     </script>
 </body>
 </html>
