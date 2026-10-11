@@ -22,13 +22,49 @@ To find the `firebase-browser-key`, go to the project on Google Cloud and go to 
 
 ```powershell
 $env:FIREBASE_API_KEY = "your-firebase-browser-key"
+$env:FIREBASE_DATABASE_URL = "https://your-project-default-rtdb.firebaseio.com"
 mvn spring-boot:run
 ```
 
 ```sh
 $ export FIREBASE_API_KEY="your-firebase-browser-key"
+$ export FIREBASE_DATABASE_URL="https://your-project-default-rtdb.firebaseio.com"
 $ mvn spring-boot:run
 ```
+
+The database URL is shown in Firebase Console under **Realtime Database**. Create
+the database in locked mode, then set its **Rules** to this preliminary policy:
+
+```json
+{
+  "rules": {
+    "reviews": {
+      ".read": "auth !== null",
+      "$placeId": {
+        "$uid": {
+          ".write": "auth !== null && auth.uid === $uid && !data.exists()",
+          ".validate": "newData.hasChildren(['author', 'rating', 'comment', 'createdAt'])",
+          "author": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+          "rating": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
+          "comment": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
+```
+
+These rules allow authenticated users to read all reviews and create one review
+per location under their own Firebase UID. The client uses the location's Google
+Place ID as the location key. Reviewers can leave the name blank to appear as
+"Anonymous LocalLens User". This initial version does not support editing or
+deleting reviews. Review reads/writes require the Firebase ID token already
+stored by the existing sign-in flow.
+
+For App Engine, configure `FIREBASE_DATABASE_URL` alongside `FIREBASE_API_KEY`
+in `app.yaml`'s `env_variables`.
 
 (Ignore this for local testing)
 For hosting on App Engine, add the key under `env_variables` in `app.yaml`; As so: 
@@ -37,6 +73,7 @@ runtime: java21
 env: standard
 env_variables:
     FIREBASE_API_KEY: "your-browser-key"
+    FIREBASE_DATABASE_URL: "https://your-project-default-rtdb.firebaseio.com"
 service: default
 ```
 

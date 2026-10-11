@@ -51,6 +51,18 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .location-details p { margin: .35rem 0; color: #526070; line-height: 1.45; }
 .location-details-close { position: absolute; top: .7rem; right: .8rem; display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: transparent; color: #172033; cursor: pointer; font-size: 1.5rem; line-height: 1; }
 .location-details-close:hover, .location-details-close:focus-visible { background: #e9eef2; }
+.location-details { max-height: min(48vh, 420px); }
+.location-reviews { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e7eb; }
+.location-reviews h3 { margin: 0 0 .55rem; font-size: 1rem; }
+.reviews-status, .review-form-message { color: #526070; font-size: .9rem; }
+.reviews-list { display: grid; gap: .6rem; margin: .6rem 0 1rem; padding: 0; list-style: none; }
+.review-item { padding: .7rem; border-radius: .5rem; background: #f5f7f8; }
+.review-item header { display: flex; justify-content: space-between; gap: .7rem; font-size: .88rem; }
+.review-item p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-form { display: grid; gap: .45rem; margin-top: .8rem; }
+.review-form select, .review-form textarea { width: 100%; padding: .6rem; border: 1px solid #cbd3dc; border-radius: .4rem; font: inherit; }
+.review-form-actions { display: flex; gap: .6rem; align-items: center; }
+.review-cancel-button { border: 0; background: transparent; color: #526070; cursor: pointer; font: inherit; }
 .target-location-pin { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 3px solid white; border-radius: 50% 50% 50% 0; background: #d9342b; box-shadow: 0 2px 8px #17203388; transform: rotate(-45deg); }
 .target-location-pin::after { color: #fff; content: "★"; font-size: 1.25rem; transform: rotate(45deg); }
 .location-results { min-height: 0; max-height: none; overflow-y: auto; }

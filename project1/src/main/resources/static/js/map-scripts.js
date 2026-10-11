@@ -1,5 +1,6 @@
 import { createLocationLayer } from "./location-markers.js";
 import { createGoogleMapsAdapter, normalizeGooglePlaces } from "./google-maps-adapter.js";
+import "./location-reviews.js";
 import { createSearchHistoryStore } from "./search-history-store.js";
 import { createSearchHistoryView } from "./search-history-view.js";
 
@@ -111,6 +112,7 @@ function select_location(id) {
 function close_location_details() {
     location_details.hidden = true;
     select_location(null);
+    document.dispatchEvent(new Event("location-cleared"));
 }
 
 function show_location_details(place) {
@@ -124,6 +126,7 @@ function show_location_details(place) {
     details_types.hidden = place.types.length === 0;
     details_coordinates.textContent = `Coordinates: ${place.lat}, ${place.lng}`;
     location_details.hidden = false;
+    document.dispatchEvent(new CustomEvent("location-selected", { detail: { id: place.id } }));
 }
 
 function clear_nearby_locations() {
