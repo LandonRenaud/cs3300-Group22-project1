@@ -82,6 +82,37 @@ stored by the existing sign-in flow.
 For App Engine, configure `GOOGLE_MAPS_API_KEY`, `FIREBASE_API_KEY`, and
 `FIREBASE_DATABASE_URL` in `app.yaml`'s `env_variables`.
 
+## Continuous integration and deployment
+
+The GitHub Actions workflow runs the Maven `verify` lifecycle and the JavaScript
+test suite on pull requests to `main`. When a pull request is merged, it runs
+both test jobs against the merged commit and deploys to Google App Engine only
+after they pass. The Maven build uses Java 21 and packages the app from
+`project1/`; App Engine deploys `project1/app.yaml`.
+
+Configure these GitHub repository **Variables**:
+
+- `GCP_PROJECT_ID`: the Google Cloud project that owns the App Engine app.
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`: the full Workload Identity Provider resource
+  name, for example `projects/123456789/locations/global/workloadIdentityPools/github/providers/github`.
+- `GCP_DEPLOY_SERVICE_ACCOUNT`: the deploy service account email.
+
+Configure these GitHub repository **Secrets** for the runtime configuration:
+
+- `GOOGLE_MAPS_API_KEY`
+- `FIREBASE_API_KEY`
+- `FIREBASE_DATABASE_URL`
+
+In Google Cloud, create the App Engine application, configure Workload Identity
+Federation to trust this repository's GitHub Actions workflow, and grant the
+service account the permissions needed to deploy App Engine versions and use
+the project's build and staging services. Grant the GitHub identity permission
+to impersonate that service account. Keep the provider restricted to this
+repository and the `main` branch. The workflow uses short-lived federation
+credentials instead of a stored service-account key. Browser API keys are
+delivered to client code by this app, so restrict them by API and allowed site
+referrers even when stored as GitHub Secrets.
+
 (Ignore this for local testing)
 For hosting on App Engine, add the key under `env_variables` in `app.yaml`; As so: 
 ```yaml
