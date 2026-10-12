@@ -69,18 +69,14 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v3
+      - name: Deploy to App Engine
+        uses: google-github-actions/deploy-appengine@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
-
-      - name: Deploy to App Engine
-        env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
-        run: >-
-          gcloud app deploy project1/app.yaml
-          --project="${{ vars.GCP_PROJECT_ID }}"
-          --quiet
-          --set-env-vars="GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},FIREBASE_API_KEY=${FIREBASE_API_KEY},FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}"
+          working_directory: project1
+          deliverables: app.yaml
+          flags: --quiet
+          env_vars: |-
+            GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+            FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+            FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}

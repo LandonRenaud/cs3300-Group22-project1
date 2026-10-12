@@ -79,8 +79,11 @@ Place ID as the location key. Reviewers can leave the name blank to appear as
 deleting reviews. Review reads/writes require the Firebase ID token already
 stored by the existing sign-in flow.
 
-For App Engine, configure `GOOGLE_MAPS_API_KEY`, `FIREBASE_API_KEY`, and
-`FIREBASE_DATABASE_URL` in `app.yaml`'s `env_variables`.
+The GitHub Actions App Engine deploy step supplies `GOOGLE_MAPS_API_KEY`,
+`FIREBASE_API_KEY`, and `FIREBASE_DATABASE_URL` as runtime environment
+variables, so they do not need to be defined in `app.yaml` for CI deployments.
+For manual deployments outside this workflow, configure these values in the
+App Engine service's `env_variables` before deploying.
 
 ## Continuous integration and deployment
 
@@ -88,7 +91,8 @@ The GitHub Actions workflow runs the Maven `verify` lifecycle and the JavaScript
 test suite on pull requests to `main`. When a pull request is merged, it runs
 both test jobs against the merged commit and deploys to Google App Engine only
 after they pass. The Maven build uses Java 21 and packages the app from
-`project1/`; App Engine deploys `project1/app.yaml`.
+`project1/`; the App Engine deploy action deploys `project1/app.yaml` and passes
+the configured GitHub Actions secrets as runtime environment variables.
 
 Configure these GitHub repository **Variables**:
 
@@ -113,8 +117,7 @@ credentials instead of a stored service-account key. Browser API keys are
 delivered to client code by this app, so restrict them by API and allowed site
 referrers even when stored as GitHub Secrets.
 
-(Ignore this for local testing)
-For hosting on App Engine, add the key under `env_variables` in `app.yaml`; As so: 
+For a manual App Engine deployment, `app.yaml` can include:
 ```yaml
 runtime: java21
 env: standard
