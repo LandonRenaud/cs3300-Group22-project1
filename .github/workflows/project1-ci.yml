@@ -12,7 +12,7 @@ on:
 
 jobs:
   maven-tests:
-    name: Maven Build and Tests
+    name: Maven Tests
     runs-on: ubuntu-latest
 
     steps:
