@@ -1,7 +1,3 @@
 runtime: java21
 env: standard
-env_variables:
-    FIREBASE_API_KEY: "your-browser-key"
-    FIREBASE_DATABASE_URL: "https://your-project-default-rtdb.firebaseio.com"
-    GOOGLE_MAPS_API_KEY: "your-google-maps-browser-key"
 service: default
