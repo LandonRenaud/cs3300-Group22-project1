@@ -4,10 +4,15 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
 
 jobs:
   maven-tests:
-    name: Maven Tests
+    name: Maven Build and Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -22,9 +27,9 @@ jobs:
           cache: maven
           cache-dependency-path: project1/pom.xml
 
-      - name: Run Maven tests
+      - name: Build and test with Maven
         working-directory: project1
-        run: mvn --batch-mode test
+        run: mvn --batch-mode --no-transfer-progress verify
 
   location-marker-tests:
     name: JavaScript Tests
@@ -41,3 +46,41 @@ jobs:
 
       - name: Run JavaScript tests
         run: node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+
+  deploy:
+    name: Deploy to Google App Engine
+    runs-on: ubuntu-latest
+    needs:
+      - maven-tests
+      - location-marker-tests
+    # The closed event runs for both merged and unmerged PRs; deploy only merges.
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Deploy to App Engine
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+        run: >-
+          gcloud app deploy project1/app.yaml
+          --project="${{ vars.GCP_PROJECT_ID }}"
+          --quiet
+          --set-env-vars="GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},FIREBASE_API_KEY=${FIREBASE_API_KEY},FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}"
