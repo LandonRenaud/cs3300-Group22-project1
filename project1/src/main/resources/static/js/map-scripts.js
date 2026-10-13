@@ -4,6 +4,7 @@ import { loadGoogleMaps } from "./google-maps-loader.js";
 import "./location-reviews.js";
 import { createSearchHistoryStore } from "./search-history-store.js";
 import { createSearchHistoryView } from "./search-history-view.js";
+import { formatDistance, haversineDistanceMeters, isValidCoordinate, sortLocationsByDistance } from "./distance-utils.mjs";
 
 let map_input_location = document.querySelector(".map-input-location");
 let location_form = document.querySelector(".location-input");
@@ -31,7 +32,13 @@ let target_marker = null;
 let history_store = null;
 let history_view = null;
 let history_revision = 0;
+let active_search = null;
+let last_executed_search = null;
 const googleMapsReady = loadGoogleMaps().then(() => true, () => false);
+const PLACE_TYPES = new Set([
+    "point_of_interest", "restaurant", "cafe", "bar", "park",
+    "tourist_attraction", "supermarket", "shopping_mall"
+]);
 
 function render_search_history() {
     if (history_store && history_view) {
@@ -88,7 +95,8 @@ function snapshot_map_context() {
             lng: typeof center.lng === "function" ? center.lng() : center.lng
         },
         bounds: map.getBounds?.()?.toJSON?.() || null,
-        zoom: map.getZoom?.() ?? null
+        zoom: map.getZoom?.() ?? null,
+        searchCenter: null
     };
 }
 
@@ -112,6 +120,8 @@ function select_location(id) {
 }
 
 function close_location_details() {
+    if (nearby_layer) nearby_layer.closeFocused();
+    else map_adapter?.close?.();
     location_details.hidden = true;
     select_location(null);
     document.dispatchEvent(new Event("location-cleared"));
@@ -151,30 +161,18 @@ function add_target_pin(location, name) {
     });
 }
 
-function get_search_options() {
-    return {
-        keyword: place_keyword.value.trim() || undefined,
-        openNow: open_now_input.checked,
-        rankBy: rank_by_input.value,
-        type: place_type_input.value,
-        radius: Math.max(1, Number(radius_input.value) || 5000),
-        price: price_input.value
-    };
-}
-
-function get_visible_bounds() {
-    return google_map.innerMap?.getBounds?.() || null;
-}
-
-function is_in_visible_bounds(place, bounds) {
-    if (!bounds) return true;
-    return bounds.contains({ lat: place.lat, lng: place.lng });
-}
-
-function render_locations(places, version, bounds = null) {
+function render_locations(places, version) {
     if (version !== search_version) return false;
     const result = normalizeGooglePlaces(places);
-    const scopedLocations = result.locations.filter(place => is_in_visible_bounds(place, bounds));
+    let scopedLocations = result.locations;
+    if (active_search?.location && active_search.options.rankBy === "distance") {
+        scopedLocations = sortLocationsByDistance(scopedLocations, active_search.location);
+    } else if (active_search?.location) {
+        scopedLocations = scopedLocations.map(place => ({
+            ...place,
+            distanceMeters: haversineDistanceMeters(active_search.location, place)
+        }));
+    }
     try {
         nearby_layer.setLocations(scopedLocations);
     } catch {
@@ -183,7 +181,7 @@ function render_locations(places, version, bounds = null) {
     }
     location_results.replaceChildren();
     location_results_empty.hidden = scopedLocations.length > 0;
-    location_results_empty.textContent = "No nearby locations were found in the visible map area.";
+    location_results_empty.textContent = "No nearby locations were found.";
     if (result.skippedCount > 0) {
         set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
     }
@@ -205,16 +203,26 @@ function render_locations(places, version, bounds = null) {
             address.textContent = place.address;
             button.append(address);
         }
-        button.addEventListener("click", () => show_location_details(place));
+        if (Number.isFinite(place.distanceMeters)) {
+            const distance = document.createElement("span");
+            distance.className = "location-result-distance";
+            distance.textContent = `Straight-line distance: ${formatDistance(place.distanceMeters)}`;
+            button.append(distance);
+        }
+        button.addEventListener("click", () => {
+            nearby_layer.focusLocation(place.id);
+            show_location_details(place);
+        });
         item.append(button);
         location_results.append(item);
     }
     return true;
 }
 
-function find_nearby_locations(location, options, version, bounds = null, onComplete = () => {}) {
+function find_nearby_locations(location, options, version, onComplete = () => {}) {
     if (!google.maps.places || !google.maps.places.PlacesService) {
         set_location_error("Nearby location search is temporarily unavailable. Please try again.");
+        active_search = null;
         return;
     }
 
@@ -243,70 +251,90 @@ function find_nearby_locations(location, options, version, bounds = null, onComp
         if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
             nearby_layer.setLocations([]);
             location_results_empty.textContent = "No nearby locations were found.";
-            onComplete();
+            onComplete(location);
             return;
         }
         if (status !== google.maps.places.PlacesServiceStatus.OK || !Array.isArray(places)) {
             set_location_error("Nearby location search failed. Please try again.");
+            active_search = null;
             return;
         }
 
-        if (render_locations(places, version, bounds)) onComplete();
+        if (render_locations(places, version)) onComplete(location);
     });
 }
 
 function parse_coordinates(value) {
-    const match = value.trim().match(/^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    const match = value.trim().match(/^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:,|\s)\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/);
     if (!match) return null;
     const lat = Number(match[1]);
     const lng = Number(match[2]);
-    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? { lat, lng } : null;
+    return isValidCoordinate({ lat, lng }) ? { lat, lng } : null;
 }
 
-function search_place_name(query, options, version, bounds, onComplete = () => {}) {
-    const places_service = new google.maps.places.PlacesService(google_map.innerMap);
-    const textQuery = [query, options.keyword].filter(Boolean).join(" ");
-    const request = { query: textQuery, bounds, type: options.type };
-    places_service.textSearch(request, (places, status) => {
-        if (version !== search_version) return;
-        if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-            nearby_layer.setLocations([]);
-            location_results_empty.textContent = "No matching locations were found in the visible map area.";
-            onComplete();
-            return;
-        }
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !Array.isArray(places)) {
-            set_location_error("Location search failed. Try a more specific place name.");
-            return;
-        }
-        const filteredPlaces = places.filter(place =>
-            (!options.openNow || place.opening_hours?.open_now === true) &&
-            (options.price === "" || place.price_level === Number(options.price))
-        );
-        if (render_locations(filteredPlaces, version, bounds)) onComplete();
-    });
+function coordinate_like(value) {
+    const trimmed = value.trim();
+    return /^\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*(?:,|\s)\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*$/.test(trimmed)
+        || (trimmed.includes(",") && !/[A-Za-z]/.test(trimmed));
 }
 
-async function recenter_map(event, restored_context = null) {
+function read_coordinate(value) {
+    const lat = typeof value?.lat === "function" ? value.lat() : value?.lat;
+    const lng = typeof value?.lng === "function" ? value.lng() : value?.lng;
+    return isValidCoordinate({ lat, lng }) ? { lat, lng } : null;
+}
+
+function get_search_options() {
+    const radius = Number(radius_input.value);
+    if (!Number.isSafeInteger(radius) || radius < 1 || radius > 50000) return null;
+    if (!["prominence", "distance"].includes(rank_by_input.value)) return null;
+    if (!["", "0", "1", "2", "3", "4"].includes(price_input.value)) return null;
+    if (!PLACE_TYPES.has(place_type_input.value)) return null;
+    return {
+        keyword: place_keyword.value.trim() || undefined,
+        openNow: open_now_input.checked,
+        rankBy: rank_by_input.value,
+        type: place_type_input.value,
+        radius,
+        price: price_input.value
+    };
+}
+
+async function recenter_map(event, restored_context = null, search_override = null) {
 
     event.preventDefault();
 
     const version = ++search_version;
-    const address = map_input_location.value.trim();
-    const options = get_search_options();
+    const address = search_override?.address ?? map_input_location.value.trim();
+    const options = search_override?.options ?? get_search_options();
     const history_version = history_revision;
     const submitted_context = restored_context || snapshot_map_context();
-    const submitted_bounds = get_visible_bounds();
     set_location_error("");
     clear_nearby_locations();
 
+    if (!options) {
+        set_location_error("Radius or search filters are invalid.");
+        return;
+    }
     if (!address && !options.keyword) {
         set_location_error("Enter a location to search.");
         return;
     }
+    if (coordinate_like(address) && !parse_coordinates(address)) {
+        set_location_error("Coordinates must use a latitude from -90 to 90 and longitude from -180 to 180.");
+        return;
+    }
+
+    active_search = {
+        address,
+        options,
+        context: submitted_context,
+        location: search_override?.location || null
+    };
 
     if (!await googleMapsReady) {
         set_location_error("Location search is temporarily unavailable. Please try again.");
+        active_search = null;
         return;
     }
 
@@ -326,87 +354,97 @@ async function recenter_map(event, restored_context = null) {
     } catch {
         if (version === search_version) {
             set_location_error("The map is not ready. Please try again.");
+            active_search = null;
         }
         return;
     }
 
-    // Use the saved bounds directly: setCenter/setZoom update the viewport
-    // asynchronously, so immediately reading getBounds could return the old area.
     const context = submitted_context || snapshot_map_context();
-    let visibleBounds = context?.bounds
-        ? new google.maps.LatLngBounds(context.bounds)
-        : submitted_bounds || get_visible_bounds();
     if (!restored_context && context && !context.bounds) {
-        context.bounds = visibleBounds?.toJSON?.() || null;
+        context.bounds = google_map.innerMap.getBounds?.()?.toJSON?.() || null;
     }
     if (restored_context) {
         google_map.innerMap.setCenter(restored_context.center);
         if (restored_context.zoom !== null) google_map.innerMap.setZoom(restored_context.zoom);
-        visibleBounds = restored_context.bounds
-            ? new google.maps.LatLngBounds(restored_context.bounds)
-            : null;
     }
-    const record_search = () => {
-        if (version !== search_version || history_version !== history_revision || !history_store) return;
-        history_store.add({ query: address, options, context });
-        render_search_history();
+    const record_search = (searchCenter = null) => {
+        if (version !== search_version) return;
+        const savedContext = context && {
+            ...context,
+            center: { ...context.center },
+            searchCenter: searchCenter && { ...searchCenter }
+        };
+        last_executed_search = {
+            address,
+            options: { ...options },
+            context: savedContext,
+            location: searchCenter && { ...searchCenter }
+        };
+        active_search.status = "complete";
+        if (history_version === history_revision && history_store) {
+            history_store.add({ query: address, options, context: savedContext });
+            render_search_history();
+        }
     };
     const coordinates = parse_coordinates(address);
+    const use_location = (location, addPin = Boolean(address)) => {
+        if (version !== search_version) return;
+        active_search.location = location;
+        google_map.innerMap.setCenter(location);
+        if (addPin) add_target_pin(location, address);
+        find_nearby_locations(location, options, version, record_search);
+    };
+
+    if (search_override?.location) {
+        use_location(search_override.location, Boolean(address));
+        return;
+    }
+
     if (!address) {
         const center = context?.center || google_map.innerMap.getCenter?.();
-        const location = center && typeof center.lat === "function"
-            ? { lat: center.lat(), lng: center.lng() }
-            : center;
+        const location = read_coordinate(center);
         if (!location) {
             set_location_error("The map center is not available yet. Please try again.");
+            active_search = null;
             return;
         }
-        find_nearby_locations(location, options, version, visibleBounds, record_search);
+        active_search.location = location;
+        find_nearby_locations(location, options, version, record_search);
         return;
     }
 
     if (coordinates) {
-        google_map.innerMap.setCenter(coordinates);
-        add_target_pin(coordinates, `${coordinates.lat}, ${coordinates.lng}`);
-        // The map is being moved to this new point. Do not use the old
-        // viewport bounds while the Google map is still updating; the nearby
-        // search radius is the scope for this coordinate search.
-        find_nearby_locations(coordinates, options, version, null, record_search);
+        use_location(coordinates);
         return;
     }
 
-    // A plain name is a Places query, not an address to geocode globally.
-    if (visibleBounds && !/\d/.test(address)) {
-        search_place_name(address, options, version, visibleBounds, record_search);
+    const savedSearchCenter = read_coordinate(restored_context?.searchCenter);
+    if (savedSearchCenter) {
+        use_location(savedSearchCenter);
         return;
     }
 
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address, ...(visibleBounds ? { bounds: visibleBounds } : {}) }, (results, status) => {
+    geocoder.geocode({ address }, (results, status) => {
         if (version !== search_version) return;
         if (status !== "OK" || !results || results.length === 0) {
             set_location_error("Location not found. Try a more specific address or place.");
+            active_search = null;
             return;
         }
 
         const geocoded_result = results[0];
-        const coordinates = geocoded_result.geometry.location;
-        const latitude = coordinates.lat();
-        const longitude = coordinates.lng();
-        const location = { lat: latitude, lng: longitude };
-
-        // A place-name geocode can resolve to an unrelated city or country. When
-        // the result is outside the map's current scope, use Places text search
-        // with the visible bounds instead of accepting that distant result.
-        if (!options.keyword && visibleBounds && !visibleBounds.contains(location)) {
-            search_place_name(address, options, version, visibleBounds, record_search);
+        const location = read_coordinate(geocoded_result.geometry?.location);
+        if (!location) {
+            set_location_error("Location found without usable coordinates. Try a more specific place.");
+            active_search = null;
             return;
         }
-
+        if (version !== search_version) return;
+        active_search.location = location;
         google_map.innerMap.setCenter(location);
-        add_target_pin(location, geocoded_result.formatted_address);
-        find_nearby_locations(location, options, version, null, record_search);
-
+        add_target_pin(location, geocoded_result.formatted_address || address);
+        find_nearby_locations(location, options, version, record_search);
     });
 }
 
@@ -419,7 +457,30 @@ function update_radius_state() {
     radius_input.setAttribute("aria-disabled", String(distance_selected));
 }
 
-rank_by_input.addEventListener("change", update_radius_state);
+function refresh_active_search() {
+    const base = active_search || last_executed_search;
+    if (!base) return;
+    const options = get_search_options();
+    if (!options) {
+        set_location_error("Radius or search filters are invalid.");
+        return;
+    }
+    if (JSON.stringify(options) === JSON.stringify(base.options)) return;
+    return recenter_map({ preventDefault() {} }, base.context, {
+        address: base.address,
+        options,
+        location: base.location
+    });
+}
+
+function handle_filter_change() {
+    update_radius_state();
+    return refresh_active_search();
+}
+
+for (const input of [place_type_input, price_input, open_now_input, rank_by_input, radius_input]) {
+    input.addEventListener("change", handle_filter_change);
+}
 
 window.addEventListener("storage", event => {
     if (history_store && (event.key === null || event.key === history_store.storageKey)) {

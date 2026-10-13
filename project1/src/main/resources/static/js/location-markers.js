@@ -70,6 +70,19 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
     markers = [];
   }
 
+  function closeFocused() {
+    mapAdapter.close?.();
+    for (const entry of markers) entry.marker.close?.();
+  }
+
+  function focusLocation(id, options = {}) {
+    const normalizedId = typeof id === "string" ? id : String(id);
+    const entry = markers.find(candidate => candidate.active && candidate.location.id === normalizedId);
+    if (!entry || typeof entry.marker.focus !== "function") return null;
+    entry.marker.focus(options);
+    return entry.location;
+  }
+
   function setLocations(locations, { fitView = false } = {}) {
     if (destroyed) {
       throw new Error("This location layer has been destroyed.");
@@ -80,7 +93,7 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
 
     try {
       for (const location of result.locations) {
-        const entry = { marker: null, active: false };
+        const entry = { marker: null, active: false, location };
         entry.marker = mapAdapter.addMarker(location, () => {
           if (entry.active && !destroyed) onSelect?.(location);
         });
@@ -114,5 +127,5 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
     clear();
   }
 
-  return { setLocations, clear, destroy };
+  return { setLocations, clear, closeFocused, focusLocation, destroy };
 }

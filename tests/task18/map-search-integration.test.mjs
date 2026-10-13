@@ -91,6 +91,7 @@ test('listing clicks show details, closing clears selection, and a new search hi
   assert.equal(app.elements['location-details-rating'].textContent, 'Rating: 4.5/5');
   assert.equal(app.elements['location-details-types'].textContent, 'cafe · food');
   assert.equal(button.attributes.get('aria-pressed'), 'true');
+  assert.equal(app.windows[0].options.anchor, app.liveMarkers()[1]);
 
   await app.elements['location-details-close'].emit('click');
   assert.equal(app.elements['location-details'].hidden, true);
@@ -170,21 +171,25 @@ test('empty searches show an empty state while failed searches show an error', a
   assert.deepEqual(app.liveMarkers().map(marker => marker.title), ['Failure center']);
 });
 
-test('place-name search displays only matches inside the visible map', async t => {
+test('named location search geocodes globally and ignores the previous map viewport', async t => {
   const app = await setup(t);
   app.map.bounds = {
     contains: ({ lat, lng }) => lat > 33 && lat < 34 && lng > -85 && lng < -84,
   };
-  await app.submit('El Tesoro');
-  assert.equal(app.geocodes.length, 0);
-  assert.equal(app.textSearches[0].request.query, 'El Tesoro');
-  assert.equal(app.textSearches[0].request.bounds, app.map.bounds);
-  app.textSearches[0].callback([
-    place('local', 'El Tesoro', 33.78, -84.4),
-    place('distant', 'El Tesoro', 41.4, 2.2),
+  app.elements['map-input-keyword'].value = 'museum';
+  app.elements['map-input-radius'].value = '1000';
+  await app.submit('Chicago');
+  assert.equal(app.geocodes[0].request.address, 'Chicago');
+  assert.equal('bounds' in app.geocodes[0].request, false);
+  app.geocode(0, 'Chicago, IL', 41.8781, -87.6298);
+  assert.deepEqual(app.map.centers.at(-1), { lat: 41.8781, lng: -87.6298 });
+  assert.deepEqual(app.searches[0].request.location, { lat: 41.8781, lng: -87.6298 });
+  assert.equal(app.searches[0].request.radius, 1000);
+  app.searches[0].callback([
+    place('chicago', 'Chicago Museum', 41.878, -87.63),
+    place('remote', 'Remote museum', 33.78, -84.4),
   ], 'OK');
-  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local']);
-  assert.deepEqual(app.liveMarkers().map(marker => marker.title), ['El Tesoro']);
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['chicago', 'remote']);
 });
 
 test('coordinates recenter the map and search around the new point', async t => {
@@ -197,7 +202,7 @@ test('coordinates recenter the map and search around the new point', async t => 
   assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['new']);
 });
 
-test('keyword alone searches from the map center within the visible bounds', async t => {
+test('keyword alone searches from the map center without viewport clipping', async t => {
   const app = await setup(t);
   app.map.bounds = { contains: ({ lat }) => lat > 33 && lat < 34 };
   app.elements['map-input-keyword'].value = 'coffee';
@@ -205,5 +210,73 @@ test('keyword alone searches from the map center within the visible bounds', asy
   assert.equal(app.searches[0].request.keyword, 'coffee');
   assert.deepEqual(app.searches[0].request.location, { lat: 33.7756, lng: -84.3963 });
   app.searches[0].callback([place('local'), place('distant', 'Far away', 40, -73)], 'OK');
-  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local']);
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local', 'distant']);
+});
+
+test('invalid coordinate-like input and invalid radius fail without a silent fallback', async t => {
+  const app = await setup(t);
+  app.elements['map-input-radius'].value = 'not-a-radius';
+  await app.submit('Chicago');
+  assert.match(app.elements['location-error'].textContent, /Radius/);
+  assert.equal(app.geocodes.length, 0);
+
+  app.elements['map-input-radius'].value = '5000';
+  await app.submit('91, -73');
+  assert.match(app.elements['location-error'].textContent, /Coordinates/);
+  assert.equal(app.geocodes.length, 0);
+
+  await app.submit('40.75,');
+  assert.match(app.elements['location-error'].textContent, /Coordinates/);
+  assert.equal(app.geocodes.length, 0);
+
+  app.elements['map-input-place-type'].value = 'unsupported-type';
+  await app.submit('Chicago');
+  assert.match(app.elements['location-error'].textContent, /filters/i);
+  assert.equal(app.geocodes.length, 0);
+});
+
+test('distance ranking sorts shuffled results and shows straight-line distances', async t => {
+  const app = await setup(t);
+  app.elements['map-input-rank-by'].value = 'distance';
+  await app.submit('0, 0');
+  app.searches[0].callback([
+    place('far', 'Far', 2, 0),
+    place('near', 'Near', 0.1, 0),
+  ], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['near', 'far']);
+  assert.match(app.rows()[0].textContent, /km away|m away/);
+  assert.equal('radius' in app.searches[0].request, false);
+});
+
+test('prominence ranking preserves provider order', async t => {
+  const app = await setup(t);
+  await app.submit('0, 0');
+  app.searches[0].callback([place('far', 'Far', 2, 0), place('near', 'Near', 0.1, 0)], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['far', 'near']);
+  assert.match(app.rows()[0].textContent, /km away/);
+});
+
+test('changing an active filter refreshes once and the newest pending filter wins', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta', 33.77, -84.39);
+  app.elements['map-input-place-type'].value = 'cafe';
+  await app.elements['map-input-place-type'].emit('change');
+  assert.equal(app.searches.length, 2);
+  assert.equal(app.searches[1].request.type, 'cafe');
+  app.elements['map-input-place-type'].value = 'park';
+  await app.elements['map-input-place-type'].emit('change');
+  assert.equal(app.searches.length, 3);
+  assert.equal(app.searches[2].request.type, 'park');
+  app.searches[1].callback([place('stale')], 'OK');
+  assert.equal(app.rows().length, 0);
+  app.searches[2].callback([place('current')], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['current']);
+});
+
+test('changing a filter before the first search does not launch a request', async t => {
+  const app = await setup(t);
+  app.elements['map-input-place-type'].value = 'cafe';
+  await app.elements['map-input-place-type'].emit('change');
+  assert.equal(app.searches.length, 0);
 });

@@ -66,6 +66,12 @@ export function createGoogleMapsAdapter(map, maps) {
         open();
         onSelect();
       };
+      const focus = ({ pan = false } = {}) => {
+        if (removed) return;
+        pinnedMarker = marker;
+        if (pan) map.panTo?.({ lat: location.lat, lng: location.lng });
+        open();
+      };
       const enter = () => {
         pinnedMarker = null;
         open();
@@ -81,6 +87,14 @@ export function createGoogleMapsAdapter(map, maps) {
       marker.addEventListener("mouseleave", leave);
 
       return {
+        focus,
+        close() {
+          if (activeMarker === marker && pinnedMarker === marker) {
+            infoWindow.close();
+            activeMarker = null;
+            pinnedMarker = null;
+          }
+        },
         remove() {
           if (removed) return;
           removed = true;
@@ -95,6 +109,12 @@ export function createGoogleMapsAdapter(map, maps) {
           marker.map = null;
         }
       };
+    },
+
+    close() {
+      infoWindow.close();
+      activeMarker = null;
+      pinnedMarker = null;
     },
 
     fitLocations(locations) {

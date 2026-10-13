@@ -54,11 +54,13 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .location-details { max-height: min(48vh, 420px); }
 .location-reviews { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e7eb; }
 .location-reviews h3 { margin: 0 0 .55rem; font-size: 1rem; }
-.reviews-status, .review-form-message { color: #526070; font-size: .9rem; }
+.reviews-summary, .reviews-status, .review-form-message { color: #526070; font-size: .9rem; }
 .reviews-list { display: grid; gap: .6rem; margin: .6rem 0 1rem; padding: 0; list-style: none; }
 .review-item { padding: .7rem; border-radius: .5rem; background: #f5f7f8; }
 .review-item header { display: flex; justify-content: space-between; gap: .7rem; font-size: .88rem; }
 .review-item p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-delete-button { margin-top: .55rem; border: 1px solid #b7c1d0; border-radius: .35rem; background: white; color: #526070; cursor: pointer; padding: .35rem .6rem; font: inherit; font-size: .82rem; }
+.review-delete-button:hover, .review-delete-button:focus-visible { border-color: #325dce; color: #172033; }
 .review-form { display: grid; gap: .45rem; margin-top: .8rem; }
 .review-form select, .review-form textarea { width: 100%; padding: .6rem; border: 1px solid #cbd3dc; border-radius: .4rem; font: inherit; }
 .review-form-actions { display: flex; gap: .6rem; align-items: center; }

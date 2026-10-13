@@ -2,7 +2,7 @@
 
 After signing in, open **Search history** below the location search form.
 The most recent 10 completed searches appear newest first. Select an entry to
-restore the location, keyword, all advanced settings, and original map area,
+restore the location, keyword, all advanced settings, and original map context,
 then run a fresh search. Each entry has a remove button; **Clear all** removes
 this account's history from this browser.
 
@@ -14,8 +14,10 @@ this account's history from this browser.
   ignores case and surrounding whitespace. Filters and map context distinguish
   searches; coordinate searches ignore the previous viewport for deduplication.
 - Inputs and the effective map center, zoom, and bounds are captured for replay.
-  Saved bounds are passed directly into the search, avoiding stale viewport
-  reads while the map moves. Results are fetched again and can change over time.
+  Named-location searches additionally save their resolved search center, so a
+  Chicago search submitted while viewing Atlanta replays around Chicago. Saved
+  context is used for the map view but never clips nearby results to an old
+  viewport. Results are fetched again and can change over time.
 - History starts only after the existing Firebase lookup returns a user `localId`.
   Its versioned localStorage key is
   `cs3300.search-history.v1:<encoded-localId>`. It persists across reloads and
@@ -33,9 +35,10 @@ this account's history from this browser.
   reload the latest saved snapshot. Concurrent localStorage operations are best
   effort, not transactional.
 
-The feature uses the existing search behavior, including the existing Google
-Places name/coordinate/address branches. History labels describe saved settings;
-which settings apply to a request remains determined by that existing branch.
+The Location field is resolved as a search center through coordinates or global
+geocoding, while a blank Location uses the current map center. History labels
+describe saved settings; distance ranking omits radius because Google Places
+rejects that combination.
 
 ## Verification
 

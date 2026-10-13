@@ -49,16 +49,18 @@ $ mvn spring-boot:run
 ```
 
 The database URL is shown in Firebase Console under **Realtime Database**. Create
-the database in locked mode, then set its **Rules** to this preliminary policy:
+the database in locked mode, then deploy the canonical policy in
+[`firebase.database.rules.json`](firebase.database.rules.json), or set its
+**Rules** to this policy:
 
 ```json
 {
   "rules": {
     "reviews": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$placeId": {
         "$uid": {
-          ".write": "auth !== null && auth.uid === $uid && !data.exists()",
+          ".write": "auth != null && auth.uid == $uid && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists()))",
           ".validate": "newData.hasChildren(['author', 'rating', 'comment', 'createdAt'])",
           "author": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
           "rating": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
@@ -72,12 +74,19 @@ the database in locked mode, then set its **Rules** to this preliminary policy:
 }
 ```
 
-These rules allow authenticated users to read all reviews and create one review
-per location under their own Firebase UID. The client uses the location's Google
-Place ID as the location key. Reviewers can leave the name blank to appear as
-"Anonymous LocalLens User". This initial version does not support editing or
-deleting reviews. Review reads/writes require the Firebase ID token already
-stored by the existing sign-in flow.
+These rules allow authenticated users to read all reviews, create one review per
+location under their own Firebase UID, and delete only their own existing review.
+They intentionally do not allow updates/overwrites. The client uses the
+location's Google Place ID as the location key. Reviewers can leave the name
+blank to appear as "Anonymous LocalLens User". Review reads/writes require the
+Firebase ID token already stored by the existing sign-in flow.
+
+The application does not deploy Firebase rules. A teammate with Firebase project
+access must paste [`firebase.database.rules.json`](firebase.database.rules.json)
+into Firebase Console under **Realtime Database > Rules**, or deploy it with the
+Firebase CLI, before relying on review deletion. Test deletion, cross-user denial,
+and update denial in the Firebase emulator or Console after configuring the
+project.
 
 The GitHub Actions App Engine deploy step supplies `GOOGLE_MAPS_API_KEY`,
 `FIREBASE_API_KEY`, and `FIREBASE_DATABASE_URL` as runtime environment
@@ -88,9 +97,10 @@ App Engine service's `env_variables` before deploying.
 ## Continuous integration and deployment
 
 The GitHub Actions workflow runs the Maven `verify` lifecycle and the JavaScript
-test suite on pull requests to `main`. When a pull request is merged, it runs
-both test jobs against the merged commit and deploys to Google App Engine only
-after they pass. The Maven build uses Java 21 and packages the app from
+test suite on pull requests to `main` and on direct pushes. A push to `main`
+deploys to Google App Engine only after both jobs pass; feature-branch pushes
+and pull requests never receive deployment credentials. The Maven build uses
+Java 21 and packages the app from
 `project1/`; the App Engine deploy action deploys `project1/app.yaml` and passes
 the configured GitHub Actions secrets as runtime environment variables.
 
@@ -116,6 +126,13 @@ repository and the `main` branch. The workflow uses short-lived federation
 credentials instead of a stored service-account key. Browser API keys are
 delivered to client code by this app, so restrict them by API and allowed site
 referrers even when stored as GitHub Secrets.
+
+Required checks and merge blocking are repository settings, not workflow code.
+Configure GitHub branch protection or a ruleset for `main` to require both test
+jobs before merging. A successful workflow in this repository is still required
+to verify the real production deployment and live API credentials; local tests do
+not establish cloud quota, key restrictions, Firebase rules, or App Engine
+access.
 
 For a manual App Engine deployment, `app.yaml` can include:
 ```yaml
@@ -146,6 +163,15 @@ The reusable location-marker module and an isolated demo are documented in
 [TASK-18 integration](docs/task18-integration.md). The production Google Map uses the marker layer for search and filter results.
 The isolated Leaflet demo uses synthetic places and can be run without signing in.
 
+The Location field is the search center: named cities, landmarks, and addresses
+are geocoded before a nearby Places search. A blank Location searches around the
+current map center. Results are not clipped to the viewport that existed before
+the search, and the selected radius is sent for prominence ranking. Google
+Places' distance ranking does not accept a radius, so the radius control is
+disabled in that mode. Results show straight-line distance estimates calculated
+from the effective search center, while distance ranking sorts results nearest
+first.
+
 Run its JavaScript tests from the repository root with Node.js 22:
 
 ```sh
@@ -164,3 +190,6 @@ Run all JavaScript tests with Node.js 22:
 ```sh
 node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
 ```
+
+History also stores the effective geocoded search center for named-location
+replay, while keyword-only searches retain their original map center context.

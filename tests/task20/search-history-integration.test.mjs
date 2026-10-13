@@ -74,22 +74,26 @@ test('keyword history restores original center, zoom and bounds after the map mo
   assert.equal(app.map.zoom, 13);
   assert.deepEqual(app.searches[1].request.location, savedContext.center);
   app.searches[1].callback([place('atlanta'), place('ny', 'New York', 40.75, -73.99)], 'OK');
-  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['atlanta']);
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['atlanta', 'ny']);
   assert.deepEqual(entries(storage)[0].context.bounds, bounds);
   assert.equal(entries(storage).length, 1);
 });
 
-test('place-name replay uses saved bounds even before the map viewport updates', async t => {
+test('named-location replay uses the saved effective search center before the map viewport updates', async t => {
   const storage = memoryStorage();
   const app = await setup(t, undefined, 'user-a', storage);
   const bounds = setBounds(app);
   await app.submit('El Tesoro');
-  app.textSearches[0].callback(null, 'ZERO_RESULTS');
+  app.geocode(0, 'El Tesoro', 40.7, -73.9);
+  app.searches[0].callback(null, 'ZERO_RESULTS');
   setBounds(app, { north: 41, south: 40, east: -73, west: -74 });
   await historyRows(app)[0].children[0].emit('click');
-  assert.deepEqual(app.textSearches[1].request.bounds.toJSON(), bounds);
-  app.textSearches[1].callback([place('local'), place('distant', 'Other', 40.7, -73.9)], 'OK');
-  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local']);
+  assert.deepEqual(app.searches[1].request.location, { lat: 40.7, lng: -73.9 });
+  assert.equal(app.geocodes.length, 1);
+  app.searches[1].callback([place('local'), place('distant', 'Other', 40.7, -73.9)], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['local', 'distant']);
+  assert.deepEqual(entries(storage)[0].context.searchCenter, { lat: 40.7, lng: -73.9 });
+  assert.deepEqual(entries(storage)[0].context.bounds, bounds);
 });
 
 test('empty, failed and stale searches are excluded; valid zero-result searches are saved', async t => {
@@ -191,12 +195,13 @@ test('bounds that become ready during library loading are saved for consistent r
   const bounds = setBounds(app);
   release({});
   await pending;
-  app.textSearches[0].callback(null, 'ZERO_RESULTS');
+  app.geocode(0, 'El Tesoro', 33.77, -84.39);
+  app.searches[0].callback(null, 'ZERO_RESULTS');
   assert.deepEqual(entries(storage)[0].context.bounds, bounds);
   setBounds(app, { north: 41, south: 40, east: -73, west: -74 });
   await historyRows(app)[0].children[0].emit('click');
-  assert.equal(app.geocodes.length, 0);
-  assert.deepEqual(app.textSearches[1].request.bounds.toJSON(), bounds);
+  assert.equal(app.geocodes.length, 1);
+  assert.deepEqual(app.searches[1].request.location, { lat: 33.77, lng: -84.39 });
 });
 
 test('storage events refresh only this user and invalidate in-flight history writes', async t => {

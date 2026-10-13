@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "reviews": {
+      ".read": "auth != null",
+      "$placeId": {
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists()))",
+          ".validate": "newData.hasChildren(['author', 'rating', 'comment', 'createdAt'])",
+          "author": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+          },
+          "rating": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5"
+          },
+          "comment": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
+  }
+}

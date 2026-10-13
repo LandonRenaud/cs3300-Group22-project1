@@ -4,6 +4,22 @@ export function canWriteReview(reviews, userId) {
   return Boolean(userId) && !reviews?.[userId];
 }
 
+export function isValidReviewRating(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 1 && value <= 5;
+}
+
+export function summarizeReviews(reviews) {
+  const values = Object.values(reviews || {})
+    .filter(review => review && typeof review === "object")
+    .map(review => review.rating)
+    .filter(isValidReviewRating);
+  const count = values.length;
+  return {
+    count,
+    average: count ? values.reduce((total, rating) => total + rating, 0) / count : null
+  };
+}
+
 export function prepareReviewDraft({ author = "", rating, comment } = {}) {
   const normalizedAuthor = String(author).trim() || DEFAULT_REVIEW_AUTHOR;
   const normalizedComment = String(comment ?? "").trim();

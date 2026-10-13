@@ -41,6 +41,9 @@ Pass an adapter for an **already initialized, visible map** to
 - `addMarker(location, onSelect)`: add a marker with a safe text popup; call the
   callback when selected; return an object with `remove()`. Removal must close its
   popup, detach listeners, and remove the marker without removing the base map.
+  The returned object also supports `focus()` for programmatic list-to-marker
+  selection and `close()` for clearing a focused popup without invoking the
+  selection callback.
 - `fitLocations(locations)`: fit a nonempty array of valid places. Use a reasonable
   zoom for one point and cap the zoom when fitting several nearby points.
 
@@ -62,13 +65,20 @@ The production `map-scripts.js`:
    `place_id`, `LatLng` methods or literal coordinates, address, types, and rating.
 5. Gives the same normalized collection to the marker layer and the text list,
    skipping invalid coordinates and duplicate IDs in both views.
-6. Highlights the matching list item when its marker is selected.
+6. Highlights the matching list item when its marker is selected; list selection
+   focuses the matching marker by normalized place ID without recursively firing
+   the marker callback.
 7. Ignores outdated library, geocoder, and Places completions when a newer search
    has started, and distinguishes empty results from service failures.
+8. Calculates straight-line distance from the effective search center for each
+   displayed place; distance-ranked searches sort that same collection nearest first,
+   while prominence-ranked searches retain provider order.
 
 All existing keyword, radius, price, open-now, ranking, and type filters are kept.
 Production updates preserve the searched center and do not automatically fit nearby
-results; this keeps the search-center pin in view. Explicit fitting is available to
+results; this keeps the search-center pin in view. The Location field is geocoded
+as the search center, and results are not filtered against the viewport that
+existed before the search. Explicit fitting is available to
 other callers:
 
 ```js
