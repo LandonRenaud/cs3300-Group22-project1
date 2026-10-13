@@ -1,7 +1,8 @@
 import { firebaseConfigReady } from "./firebase-auth.js";
-import { canWriteReview, prepareReviewDraft } from "./review-utils.mjs";
+import { canWriteReview, isValidReviewRating, prepareReviewDraft, summarizeReviews } from "./review-utils.mjs";
 
 const status = document.querySelector(".reviews-status");
+const summary = document.querySelector(".reviews-summary");
 const list = document.querySelector(".reviews-list");
 const openButton = document.querySelector(".review-open-button");
 const form = document.querySelector(".review-form");
@@ -11,18 +12,28 @@ let currentPlaceId = null;
 let currentUser = null;
 let requestVersion = 0;
 let loadedReviewsPlaceId = null;
+let currentReviews = null;
 let submitting = false;
 
 function setStatus(message) {
+  if (!status) return;
   status.textContent = message;
   status.hidden = !message;
 }
 
-function databasePath(placeId, userId = null) {
+function setSummary(reviews) {
+  if (!summary) return;
+  const result = summarizeReviews(reviews);
+  summary.textContent = result.count
+    ? `${result.average.toFixed(1)}/5 average · ${result.count} ${result.count === 1 ? "review" : "reviews"}`
+    : "No community reviews yet.";
+}
+
+export function databasePath(placeId, userId = null) {
   return ["reviews", placeId, ...(userId ? [userId] : [])].map(encodeURIComponent).join("/");
 }
 
-async function databaseRequest(path, { method = "GET", body } = {}) {
+export async function databaseRequest(path, { method = "GET", body } = {}) {
   const config = await firebaseConfigReady;
   if (!config.databaseUrl) throw new Error("Configure FIREBASE_DATABASE_URL to enable reviews.");
   const token = sessionStorage.getItem("firebaseIdToken");
@@ -42,23 +53,42 @@ async function databaseRequest(path, { method = "GET", body } = {}) {
   return result;
 }
 
-function renderReviews(reviews) {
+export function renderReviews(reviews) {
+  if (!list) return;
   list.replaceChildren();
-  const entries = Object.entries(reviews || {}).sort(([, a], [, b]) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-  for (const [, review] of entries) {
+  const entries = Object.entries(reviews || {})
+    .filter(([, review]) => review && typeof review === "object")
+    .sort(([, first], [, second]) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
+  setSummary(reviews);
+
+  for (const [reviewUserId, review] of entries) {
     const item = document.createElement("li");
     item.className = "review-item";
+    item.dataset.reviewUserId = reviewUserId;
     const heading = document.createElement("header");
     const author = document.createElement("strong");
-    author.textContent = review.author || "Community member";
+    author.textContent = typeof review.author === "string" && review.author.trim()
+      ? review.author.slice(0, 80) : "Community member";
     const rating = document.createElement("span");
-    rating.textContent = `${review.rating}/5`;
+    rating.textContent = isValidReviewRating(review.rating)
+      ? `${review.rating}/5` : "Rating unavailable";
     heading.append(author, rating);
     const comment = document.createElement("p");
-    comment.textContent = review.comment;
+    comment.textContent = typeof review.comment === "string"
+      ? review.comment.slice(0, 2000) : "Review text unavailable.";
     const date = document.createElement("small");
-    date.textContent = new Date(review.createdAt).toLocaleDateString();
+    const createdAt = typeof review.createdAt === "number" ? new Date(review.createdAt) : new Date(NaN);
+    date.textContent = Number.isFinite(createdAt.getTime()) ? createdAt.toLocaleDateString() : "";
     item.append(heading, comment, date);
+
+    if (currentUser?.localId === reviewUserId) {
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "review-delete-button";
+      deleteButton.textContent = "Delete";
+      deleteButton.addEventListener("click", () => deleteReview(reviewUserId, deleteButton));
+      item.append(deleteButton);
+    }
     list.append(item);
   }
   setStatus(entries.length ? "" : "No reviews yet. Be the first to review this location.");
@@ -68,21 +98,46 @@ async function loadReviews(placeId) {
   const version = ++requestVersion;
   currentPlaceId = placeId;
   loadedReviewsPlaceId = null;
-  list.replaceChildren();
-  form.hidden = true;
-  openButton.hidden = true;
+  currentReviews = null;
+  list?.replaceChildren();
+  if (summary) summary.textContent = "Loading community review summary...";
+  if (form) form.hidden = true;
+  if (openButton) openButton.hidden = true;
   setStatus("Loading reviews...");
   try {
     const reviews = await databaseRequest(databasePath(placeId));
     if (version === requestVersion && currentPlaceId === placeId) {
+      currentReviews = reviews;
       renderReviews(reviews);
       loadedReviewsPlaceId = placeId;
       const alreadyReviewed = currentUser && !canWriteReview(reviews, currentUser.localId);
-      openButton.hidden = !currentUser || alreadyReviewed;
+      if (openButton) openButton.hidden = !currentUser || alreadyReviewed;
       if (alreadyReviewed) setStatus("You've already reviewed this location.");
     }
   } catch (error) {
-    if (version === requestVersion) setStatus(error.message);
+    if (version === requestVersion) {
+      if (summary) summary.textContent = "Community review summary unavailable.";
+      setStatus(error.message);
+    }
+  }
+}
+
+async function deleteReview(reviewUserId, button) {
+  const placeId = currentPlaceId;
+  const version = requestVersion;
+  if (!placeId || !currentUser?.localId || currentUser.localId !== reviewUserId || !loadedReviewsPlaceId) return;
+  if (globalThis.confirm && !globalThis.confirm("Delete your review? This cannot be undone.")) return;
+
+  button.disabled = true;
+  setStatus("Deleting review...");
+  try {
+    await databaseRequest(databasePath(placeId, reviewUserId), { method: "DELETE" });
+    if (version !== requestVersion || currentPlaceId !== placeId) return;
+    await loadReviews(placeId);
+  } catch (error) {
+    if (version === requestVersion && currentPlaceId === placeId) setStatus(error.message);
+  } finally {
+    if (version === requestVersion && currentPlaceId === placeId) button.disabled = false;
   }
 }
 
@@ -91,38 +146,49 @@ document.addEventListener("location-cleared", () => {
   requestVersion++;
   currentPlaceId = null;
   loadedReviewsPlaceId = null;
-  list.replaceChildren();
-  form.hidden = true;
-  openButton.hidden = true;
+  currentReviews = null;
+  list?.replaceChildren();
+  if (summary) summary.textContent = "Select a location to view community review statistics.";
+  if (form) form.hidden = true;
+  if (openButton) openButton.hidden = true;
   setStatus("Select a location to view reviews.");
 });
 document.addEventListener("firebase-user-ready", event => {
-  currentUser = event.detail;
+  currentUser = typeof event.detail?.localId === "string" && event.detail.localId.trim()
+    ? event.detail : null;
   if (loadedReviewsPlaceId === currentPlaceId && currentPlaceId) {
-    databaseRequest(databasePath(currentPlaceId, currentUser.localId))
+    if (currentReviews) renderReviews(currentReviews);
+    if (!currentUser) {
+      if (openButton) openButton.hidden = true;
+      return;
+    }
+    const placeId = currentPlaceId;
+    const version = requestVersion;
+    databaseRequest(databasePath(placeId, currentUser.localId))
       .then(review => {
-        if (loadedReviewsPlaceId !== currentPlaceId) return;
-        openButton.hidden = Boolean(review);
+        if (version !== requestVersion || loadedReviewsPlaceId !== currentPlaceId) return;
+        if (openButton) openButton.hidden = Boolean(review);
         if (review) setStatus("You've already reviewed this location.");
       })
       .catch(error => setStatus(error.message));
   }
 });
 
-openButton.addEventListener("click", () => {
+openButton?.addEventListener("click", () => {
   form.hidden = false;
   openButton.hidden = true;
-  form.querySelector("select").focus();
+  form.querySelector("select")?.focus();
 });
-cancelButton.addEventListener("click", () => {
+cancelButton?.addEventListener("click", () => {
   form.reset();
   form.hidden = true;
   formMessage.hidden = true;
   openButton.hidden = !currentPlaceId;
 });
-form.addEventListener("submit", async event => {
+form?.addEventListener("submit", async event => {
   event.preventDefault();
   const placeId = currentPlaceId;
+  const version = requestVersion;
   if (!placeId || !currentUser?.localId || loadedReviewsPlaceId !== placeId || submitting) return;
   const draft = prepareReviewDraft({
     author: form.elements.author.value,
@@ -140,6 +206,7 @@ form.addEventListener("submit", async event => {
   formMessage.hidden = true;
   try {
     const existingReview = await databaseRequest(databasePath(placeId, currentUser.localId));
+    if (version !== requestVersion || currentPlaceId !== placeId) return;
     if (!canWriteReview(existingReview ? { [currentUser.localId]: existingReview } : null, currentUser.localId)) {
       form.hidden = true;
       openButton.hidden = true;
@@ -150,12 +217,15 @@ form.addEventListener("submit", async event => {
       method: "PUT",
       body: { ...draft.value, createdAt: Date.now() }
     });
+    if (version !== requestVersion || currentPlaceId !== placeId) return;
     form.reset();
     form.hidden = true;
-    if (currentPlaceId === placeId) await loadReviews(placeId);
+    await loadReviews(placeId);
   } catch (error) {
-    formMessage.textContent = error.message;
-    formMessage.hidden = false;
+    if (version === requestVersion && currentPlaceId === placeId) {
+      formMessage.textContent = error.message;
+      formMessage.hidden = false;
+    }
   } finally {
     submitting = false;
     submitButton.disabled = false;

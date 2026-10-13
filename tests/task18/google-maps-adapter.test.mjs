@@ -71,6 +71,7 @@ function setup(t) {
   map.zooms = [];
   map.fits = [];
   map.setCenter = center => map.centers.push(center);
+  map.panTo = center => map.centers.push(center);
   map.setZoom = zoom => { map.zoom = zoom; map.zooms.push(zoom); };
   map.getZoom = () => map.zoom;
   map.fitBounds = (bounds, padding) => map.fits.push({ bounds, padding });
@@ -204,6 +205,19 @@ test('hover popup closes on leave while a clicked popup stays open', t => {
   markers[0].emit('mouseleave');
   assert.equal(windows[0].closeCalls, 1);
   assert.equal(selections, 1);
+});
+
+test('programmatic focus opens a marker without invoking the selection callback', t => {
+  const { adapter, markers, windows, map } = setup(t);
+  let selections = 0;
+  const handle = adapter.addMarker(location('one'), () => { selections += 1; });
+
+  handle.focus({ pan: true });
+  assert.equal(selections, 0);
+  assert.equal(windows[0].openCalls.at(-1).anchor, markers[0]);
+  assert.deepEqual(map.centers, [{ lat: 33.77, lng: -84.39 }]);
+  handle.close();
+  assert.equal(windows[0].closeCalls, 1);
 });
 
 test('removal closes only the owned popup and detaches stale marker events', t => {

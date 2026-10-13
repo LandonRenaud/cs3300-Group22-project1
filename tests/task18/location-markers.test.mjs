@@ -26,6 +26,15 @@ function createAdapter() {
         click() {
           onSelect();
         },
+        focusCalls: 0,
+        focus(options) {
+          this.focusCalls += 1;
+          this.focusOptions = options;
+        },
+        closeCalls: 0,
+        close() {
+          this.closeCalls += 1;
+        },
       };
       markers.push(marker);
       return marker;
@@ -33,6 +42,7 @@ function createAdapter() {
     fitLocations(places) {
       fittedLocations.push(places);
     },
+    close() {},
   };
 }
 
@@ -195,6 +205,21 @@ test('marker selection supplies the corresponding normalized location', () => {
   const withoutSelection = createAdapter();
   createLocationLayer(withoutSelection).setLocations([location('one')]);
   assert.doesNotThrow(() => withoutSelection.markers[0].click());
+});
+
+test('focusLocation matches normalized IDs, opens only the active marker, and ignores removed markers', () => {
+  const adapter = createAdapter();
+  const layer = createLocationLayer(adapter);
+  layer.setLocations([location(12), location('other')]);
+
+  assert.equal(layer.focusLocation(12, { pan: true }).id, '12');
+  assert.equal(adapter.markers[0].focusCalls, 1);
+  assert.deepEqual(adapter.markers[0].focusOptions, { pan: true });
+  layer.setLocations([location('replacement')]);
+  assert.equal(layer.focusLocation(12), null);
+  assert.equal(layer.focusLocation('replacement').id, 'replacement');
+  layer.closeFocused();
+  assert.equal(adapter.markers.at(-1).closeCalls, 1);
 });
 
 test('clear and destroy release markers once and are safe to repeat', () => {

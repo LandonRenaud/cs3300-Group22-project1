@@ -31,10 +31,21 @@ function normalize_context(context) {
         bounds = { north: value.north, south: value.south, east: value.east, west: value.west };
     }
     if (context.zoom != null && !in_range(context.zoom, 0, 30)) return undefined;
+    let searchCenter = null;
+    if (context.searchCenter != null) {
+        if (!is_record(context.searchCenter)
+            || !in_range(context.searchCenter.lat, -90, 90)
+            || !in_range(context.searchCenter.lng, -180, 180)) return undefined;
+        searchCenter = {
+            lat: context.searchCenter.lat,
+            lng: context.searchCenter.lng
+        };
+    }
     return {
         center: { lat: context.center.lat, lng: context.center.lng },
         bounds,
-        zoom: context.zoom ?? null
+        zoom: context.zoom ?? null,
+        searchCenter
     };
 }
 
@@ -86,7 +97,8 @@ function copy_entry(entry) {
         context: entry.context && {
             ...entry.context,
             center: { ...entry.context.center },
-            bounds: entry.context.bounds && { ...entry.context.bounds }
+            bounds: entry.context.bounds && { ...entry.context.bounds },
+            searchCenter: entry.context.searchCenter && { ...entry.context.searchCenter }
         }
     };
 }
