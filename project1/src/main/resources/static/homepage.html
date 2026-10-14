@@ -76,8 +76,11 @@
             </section>
             <section class="location-results" aria-labelledby="location-results-heading">
                 <h2 id="location-results-heading">Nearby locations</h2>
+                <p class="location-results-count" role="status" aria-live="polite" aria-atomic="true">0 locations</p>
+                <p class="location-results-loading" role="status" aria-live="polite" aria-atomic="true" hidden></p>
                 <p class="location-results-empty">Search for a location to see nearby places here.</p>
                 <ol class="location-results-list"></ol>
+                <button class="button button-small location-results-load-more" type="button" hidden>Load More Results</button>
             </section>
         </aside>
         <section class="map-panel" aria-label="Map">

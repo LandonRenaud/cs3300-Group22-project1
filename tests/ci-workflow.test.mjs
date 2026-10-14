@@ -9,7 +9,11 @@ test('CI tests pushes and pull requests, and deploys only after green trusted ma
   assert.match(workflow, /\n  pull_request:\s*\n    branches:\s*\n      - main/);
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /- closed/);
+  assert.match(workflow, /  browser-tests:\s*\n    name: Browser Regression Tests/);
+  assert.match(workflow, /run: npx playwright install --with-deps chromium/);
+  assert.match(workflow, /run: node --test tests\/task20\/browser-regression\.cjs/);
   assert.match(workflow, /needs:\s*\n      - maven-tests\s*\n      - location-marker-tests/);
+  assert.match(workflow, /      - browser-tests\s*\n    if: github\.event_name/);
   assert.match(workflow, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /id-token: write/);
 });
