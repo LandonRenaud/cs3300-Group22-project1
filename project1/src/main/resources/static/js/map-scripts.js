@@ -34,6 +34,8 @@ let history_view = null;
 let history_revision = 0;
 let active_search = null;
 let last_executed_search = null;
+let selected_location_id = null;
+const rendered_locations = new Map();
 const googleMapsReady = loadGoogleMaps().then(() => true, () => false);
 const PLACE_TYPES = new Set([
     "point_of_interest", "restaurant", "cafe", "bar", "park",
@@ -109,25 +111,32 @@ function set_location_error(message) {
 }
 
 function select_location(id) {
+    const normalizedId = id === null || id === undefined ? null : String(id);
+    const changed = selected_location_id !== normalizedId;
+    selected_location_id = normalizedId;
     for (const result of location_results.children) {
-        const selected = result.dataset.locationId === id;
+        const selected = result.dataset.locationId === normalizedId;
         result.classList.toggle("is-selected", selected);
         result.querySelector("button")?.setAttribute("aria-pressed", String(selected));
-        if (selected) {
+        if (selected && changed) {
             result.setAttribute("aria-current", "true");
             result.scrollIntoView({ block: "nearest" });
-        } else {
+        } else if (!selected) {
             result.removeAttribute("aria-current");
         }
     }
 }
 
-function close_location_details() {
-    if (nearby_layer) nearby_layer.closeFocused();
-    else map_adapter?.close?.();
+function clear_location_details() {
     location_details.hidden = true;
     select_location(null);
     document.dispatchEvent(new Event("location-cleared"));
+}
+
+function close_location_details() {
+    if (nearby_layer) nearby_layer.closeFocused();
+    else map_adapter?.close?.();
+    clear_location_details();
 }
 
 function show_location_details(place) {
@@ -144,11 +153,42 @@ function show_location_details(place) {
     document.dispatchEvent(new CustomEvent("location-selected", { detail: { id: place.id } }));
 }
 
+function location_is_outside_map(place) {
+    const bounds = google_map.innerMap?.getBounds?.();
+    if (!bounds || typeof bounds.contains !== "function") return false;
+    try {
+        return !bounds.contains({ lat: place.lat, lng: place.lng });
+    } catch {
+        return false;
+    }
+}
+
+function focus_result_location(place) {
+    const focused = nearby_layer?.focusLocation(place.id, {
+        pan: location_is_outside_map(place)
+    });
+    if (!focused) {
+        set_location_error("This location is no longer available on the map. Please search again.");
+        close_location_details();
+        return;
+    }
+    show_location_details(place);
+}
+
+function handle_results_click(event) {
+    const button = event.target?.closest?.(".location-result-button");
+    const item = button?.closest?.(".location-result");
+    if (!item) return;
+    const place = rendered_locations.get(item.dataset.locationId);
+    if (place) focus_result_location(place);
+}
+
 function clear_nearby_locations() {
     close_location_details();
     nearby_layer?.clear();
     target_marker?.remove();
     target_marker = null;
+    rendered_locations.clear();
     location_results.replaceChildren();
     location_results_empty.textContent = "Search for a location to see nearby places here.";
     location_results_empty.hidden = false;
@@ -182,6 +222,9 @@ function render_locations(places, version) {
         set_location_error("Nearby locations could not be displayed. Please try again.");
         return false;
     }
+    const hadSelection = selected_location_id !== null;
+    if (hadSelection) clear_location_details();
+    rendered_locations.clear();
     location_results.replaceChildren();
     location_results_empty.hidden = scopedLocations.length > 0;
     location_results_empty.textContent = "No nearby locations were found.";
@@ -189,6 +232,7 @@ function render_locations(places, version) {
         set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
     }
     for (const place of scopedLocations) {
+        rendered_locations.set(place.id, place);
         const item = document.createElement("li");
         item.className = "location-result";
         item.dataset.locationId = place.id;
@@ -212,10 +256,6 @@ function render_locations(places, version) {
             distance.textContent = `Straight-line distance: ${formatDistance(place.distanceMeters)}`;
             button.append(distance);
         }
-        button.addEventListener("click", () => {
-            nearby_layer.focusLocation(place.id);
-            show_location_details(place);
-        });
         item.append(button);
         location_results.append(item);
     }
@@ -253,6 +293,9 @@ function find_nearby_locations(location, options, version, onComplete = () => {}
         if (version !== search_version) return;
         if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
             nearby_layer.setLocations([]);
+            rendered_locations.clear();
+            location_results.replaceChildren();
+            clear_location_details();
             location_results_empty.textContent = "No nearby locations were found.";
             onComplete(location);
             return;
@@ -350,7 +393,9 @@ async function recenter_map(event, restored_context = null, search_override = nu
         if (version !== search_version) return;
         if (!google_map.innerMap) throw new Error("Map is not ready.");
         if (!map_adapter) {
-            map_adapter = createGoogleMapsAdapter(google_map.innerMap, google.maps);
+            map_adapter = createGoogleMapsAdapter(google_map.innerMap, google.maps, {
+                onClose: clear_location_details
+            });
             nearby_layer = createLocationLayer(map_adapter, {
                 onSelect: show_location_details
             });
@@ -457,6 +502,7 @@ async function recenter_map(event, restored_context = null, search_override = nu
 }
 
 location_form.addEventListener("submit", recenter_map);
+location_results.addEventListener("click", handle_results_click);
 details_close.addEventListener("click", close_location_details);
 
 function update_radius_state() {

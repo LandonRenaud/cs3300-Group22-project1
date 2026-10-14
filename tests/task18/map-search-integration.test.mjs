@@ -64,14 +64,18 @@ test('map and list show the same valid unique places, retain the target, and sup
   await results[1].emit('gmp-click');
   assert.equal(app.rows()[1].attributes.get('aria-current'), 'true');
   assert.equal(app.rows()[1].scrolled, true);
+  assert.equal(results[1].classes.has('location-marker-selected'), true);
   assert.equal(app.elements['location-details'].hidden, false);
   assert.equal(app.elements['location-details-heading'].textContent, 'Zero coordinates');
   assert.equal(app.windows[0].options.anchor, results[1]);
   await results[0].emit('gmp-click');
   assert.equal(app.rows()[1].attributes.has('aria-current'), false);
   assert.equal(app.rows()[0].classes.has('is-selected'), true);
+  assert.equal(results[1].classes.has('location-marker-selected'), false);
+  assert.equal(results[0].classes.has('location-marker-selected'), true);
   await target.emit('gmp-click');
   assert.ok(app.rows().every(row => !row.classes.has('is-selected')));
+  assert.ok(results.every(marker => !marker.classes.has('location-marker-selected')));
   assert.equal(app.elements['location-details'].hidden, true);
 });
 
@@ -100,6 +104,75 @@ test('listing clicks show details, closing clears selection, and a new search hi
   await app.submit('New address');
   assert.equal(app.elements['location-details'].hidden, true);
   assert.equal(app.rows().length, 0);
+});
+
+test('listing activation pans only when its marker is outside the current map bounds', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta center');
+  app.searches[0].callback([place('cafe', 'Cafe Corner', 40, -73)], 'OK');
+  app.map.bounds = { contains: () => false };
+
+  await app.rows()[0].children[0].emit('click');
+  assert.deepEqual(app.map.centers.at(-1), { lat: 40, lng: -73 });
+
+  app.map.bounds = { contains: () => true };
+  const centerCount = app.map.centers.length;
+  await app.rows()[0].children[0].emit('click');
+  assert.equal(app.map.centers.length, centerCount);
+});
+
+test('closing a marker popup clears list, details, and marker selection', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta center');
+  app.searches[0].callback([place('cafe', 'Cafe Corner')], 'OK');
+  const marker = app.liveMarkers()[1];
+
+  await marker.emit('gmp-click');
+  assert.equal(app.rows()[0].classes.has('is-selected'), true);
+  assert.equal(marker.classes.has('location-marker-selected'), true);
+  await app.windows[0].emit('closeclick');
+
+  assert.equal(app.rows()[0].classes.has('is-selected'), false);
+  assert.equal(app.rows()[0].children[0].attributes.get('aria-pressed'), 'false');
+  assert.equal(app.elements['location-details'].hidden, true);
+  assert.equal(marker.classes.has('location-marker-selected'), false);
+});
+
+test('rapid list selections leave only the latest location selected', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta center');
+  app.searches[0].callback([place('first', 'First'), place('second', 'Second')], 'OK');
+
+  await app.rows()[0].children[0].emit('click');
+  await app.rows()[1].children[0].emit('click');
+
+  assert.equal(app.rows()[0].classes.has('is-selected'), false);
+  assert.equal(app.rows()[1].classes.has('is-selected'), true);
+  assert.equal(app.elements['location-details-heading'].textContent, 'Second');
+  assert.equal(app.windows[0].options.anchor, app.liveMarkers()[2]);
+  assert.equal(app.liveMarkers()[1].classes.has('location-marker-selected'), false);
+  assert.equal(app.liveMarkers()[2].classes.has('location-marker-selected'), true);
+});
+
+test('filter refresh clears a selected location before replacement results arrive', async t => {
+  const app = await setup(t);
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta center');
+  app.searches[0].callback([place('old', 'Old result')], 'OK');
+  await app.rows()[0].children[0].emit('click');
+
+  app.elements['map-input-place-type'].value = 'cafe';
+  await app.elements['map-input-place-type'].emit('change');
+  assert.equal(app.rows().length, 0);
+  assert.equal(app.elements['location-details'].hidden, true);
+  assert.equal(app.liveMarkers().some(marker => marker.title === 'Old result'), false);
+
+  app.searches[1].callback([place('new', 'New result')], 'OK');
+  assert.equal(app.rows()[0].classes.has('is-selected'), false);
+  assert.equal(app.elements['location-details'].hidden, true);
 });
 
 test('a late geocoder response cannot replace the latest search center or results', async t => {
