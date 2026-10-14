@@ -75,6 +75,26 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
     for (const entry of markers) entry.marker.close?.();
   }
 
+  function createMarkerEntries(locations) {
+    const entries = [];
+    try {
+      for (const location of locations) {
+        const entry = { marker: null, active: false, location };
+        entry.marker = mapAdapter.addMarker(location, () => {
+          if (entry.active && !destroyed) onSelect?.(location);
+        });
+        if (!entry.marker || typeof entry.marker.remove !== "function") {
+          throw new TypeError("addMarker must return an object with remove().");
+        }
+        entries.push(entry);
+      }
+    } catch (error) {
+      removeMarkers(entries);
+      throw error;
+    }
+    return entries;
+  }
+
   function focusLocation(id, options = {}) {
     const normalizedId = typeof id === "string" ? id : String(id);
     const entry = markers.find(candidate => candidate.active && candidate.location.id === normalizedId);
@@ -89,23 +109,7 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
     }
 
     const result = normalizeLocations(locations);
-    const nextMarkers = [];
-
-    try {
-      for (const location of result.locations) {
-        const entry = { marker: null, active: false, location };
-        entry.marker = mapAdapter.addMarker(location, () => {
-          if (entry.active && !destroyed) onSelect?.(location);
-        });
-        if (!entry.marker || typeof entry.marker.remove !== "function") {
-          throw new TypeError("addMarker must return an object with remove().");
-        }
-        nextMarkers.push(entry);
-      }
-    } catch (error) {
-      removeMarkers(nextMarkers);
-      throw error;
-    }
+    const nextMarkers = createMarkerEntries(result.locations);
 
     clear();
     markers = nextMarkers;
@@ -122,10 +126,36 @@ export function createLocationLayer(mapAdapter, { onSelect } = {}) {
     };
   }
 
+  function appendLocations(locations, { fitView = false } = {}) {
+    if (destroyed) {
+      throw new Error("This location layer has been destroyed.");
+    }
+
+    const result = normalizeLocations(locations);
+    const existingIds = new Set(markers.map(entry => entry.location.id));
+    const additions = result.locations.filter(location => !existingIds.has(location.id));
+    const existingDuplicateCount = result.locations.length - additions.length;
+    const nextMarkers = createMarkerEntries(additions);
+
+    for (const entry of nextMarkers) entry.active = true;
+    markers.push(...nextMarkers);
+
+    if (fitView && markers.length > 0) {
+      mapAdapter.fitLocations(markers.map(entry => entry.location));
+    }
+
+    return {
+      displayedCount: markers.length,
+      addedCount: additions.length,
+      skippedCount: result.skippedCount,
+      duplicateCount: result.duplicateCount + existingDuplicateCount
+    };
+  }
+
   function destroy() {
     destroyed = true;
     clear();
   }
 
-  return { setLocations, clear, closeFocused, focusLocation, destroy };
+  return { setLocations, appendLocations, clear, closeFocused, focusLocation, destroy };
 }

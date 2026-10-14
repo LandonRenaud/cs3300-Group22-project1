@@ -60,7 +60,8 @@ export class Element {
 export async function setup(t, importLibrary = async () => ({}), userId = null, storage = null) {
   const selectors = [
     'map-input-location', 'location-input', 'google-map', 'location-results-list',
-    'location-results-empty', 'location-error', 'map-input-keyword', 'map-input-radius',
+    'location-results-empty', 'location-results-count', 'location-results-loading',
+    'location-results-load-more', 'location-error', 'map-input-keyword', 'map-input-radius',
     'map-input-price', 'map-input-open-now', 'map-input-rank-by', 'map-input-place-type',
     'location-details', 'location-details-heading', 'location-details-address',
     'location-details-rating', 'location-details-types', 'location-details-coordinates',
@@ -196,6 +197,8 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     },
     liveMarkers: () => markers.filter(marker => marker.map),
     rows: () => elements['location-results-list'].children,
+    loadMore: () => elements['location-results-load-more'],
+    waitForNextPage: () => new Promise(resolve => setTimeout(resolve, 2050)),
   };
 }
 

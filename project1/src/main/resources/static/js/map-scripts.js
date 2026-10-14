@@ -11,7 +11,12 @@ let location_form = document.querySelector(".location-input");
 let google_map = document.querySelector(".google-map");
 let location_results = document.querySelector(".location-results-list");
 let location_results_empty = document.querySelector(".location-results-empty");
+let location_results_count = document.querySelector(".location-results-count");
+let location_results_loading = document.querySelector(".location-results-loading");
+let location_results_load_more = document.querySelector(".location-results-load-more");
 let location_error = document.querySelector(".location-error");
+let location_error_message = location_error?.querySelector?.(".location-error-message");
+let location_retry_button = location_error?.querySelector?.(".location-error-retry");
 let place_keyword = document.querySelector(".map-input-keyword");
 let radius_input = document.querySelector(".map-input-radius");
 let price_input = document.querySelector(".map-input-price");
@@ -106,8 +111,128 @@ function snapshot_map_context() {
 }
 
 function set_location_error(message) {
-    location_error.textContent = message;
+    if (location_error_message) location_error_message.textContent = message;
+    else location_error.textContent = message;
     location_error.hidden = !message;
+    if (location_retry_button) location_retry_button.hidden = !message;
+}
+
+function show_google_maps_error() {
+    if (location_error_message) location_error_message.textContent = "Google Maps could not load. Check your connection and try again.";
+    else location_error.textContent = "Google Maps could not load. Check your connection and try again.";
+    location_error.hidden = false;
+    if (location_retry_button) location_retry_button.hidden = false;
+}
+
+function request_google_maps_load() {
+    if (window.google?.maps?.importLibrary) return Promise.resolve();
+    if (!google_maps_ready) {
+        google_maps_ready = loadGoogleMaps().catch(error => {
+            google_maps_ready = null;
+            throw error;
+        });
+    }
+    return google_maps_ready;
+}
+
+async function ensure_google_maps() {
+    try {
+        await request_google_maps_load();
+        return true;
+    } catch {
+        show_google_maps_error();
+        return false;
+    }
+}
+
+async function retry_google_maps() {
+    if (google_maps_retry) return google_maps_retry;
+
+    const failed_search = pending_search;
+    set_location_error("Retrying Google Maps…");
+    google_maps_retry = (async () => {
+        if (!await ensure_google_maps()) return;
+        if (failed_search && pending_search === failed_search) {
+            await recenter_map(
+                { preventDefault() {} },
+                failed_search.restored_context,
+                failed_search.search_override
+            );
+        } else {
+            set_location_error("");
+        }
+    })().finally(() => {
+        google_maps_retry = null;
+    });
+    return google_maps_retry;
+}
+
+function set_results_loading(loading, message = "") {
+    location_results_loading.textContent = message;
+    location_results_loading.hidden = !loading;
+}
+
+function update_results_count(count) {
+    location_results_count.textContent = `${count} ${count === 1 ? "location" : "locations"}`;
+}
+
+function update_pagination_control() {
+    const available = Boolean(
+        pagination_state
+        && pagination_state.version === search_version
+        && pagination_state.hasNextPage
+    );
+    const waiting_for_api = Boolean(
+        available
+        && !pagination_state.loading
+        && Date.now() < pagination_state.readyAt
+    );
+    location_results_load_more.hidden = !available;
+    location_results_load_more.disabled = !available || pagination_state.loading || waiting_for_api;
+    location_results_load_more.setAttribute("aria-disabled", String(location_results_load_more.disabled));
+    location_results_load_more.setAttribute("aria-busy", String(Boolean(pagination_state?.loading)));
+    location_results_load_more.textContent = pagination_state?.loading
+        ? "Loading More Results..."
+        : "Load More Results";
+}
+
+function clear_pagination() {
+    if (pagination_state?.timer) clearTimeout(pagination_state.timer);
+    if (pagination_state?.readyTimer) clearTimeout(pagination_state.readyTimer);
+    pagination_state = null;
+    update_pagination_control();
+}
+
+function update_pagination(pagination, version) {
+    if (version !== search_version) return;
+    if (pagination_state?.timer) clearTimeout(pagination_state.timer);
+    if (pagination_state?.readyTimer) clearTimeout(pagination_state.readyTimer);
+
+    const hasNextPage = Boolean(
+        pagination
+        && pagination.hasNextPage
+        && typeof pagination.nextPage === "function"
+    );
+    pagination_state = hasNextPage
+        ? {
+            version,
+            pagination,
+            hasNextPage: true,
+            loading: false,
+            readyAt: Date.now() + PLACES_PAGE_WAIT_MS,
+            timer: null,
+            readyTimer: null
+        }
+        : null;
+    if (pagination_state) {
+        pagination_state.readyTimer = setTimeout(() => {
+            if (pagination_state?.version === version && !pagination_state.loading) {
+                pagination_state.readyTimer = null;
+                update_pagination_control();
+            }
+        }, PLACES_PAGE_WAIT_MS);
+    }
+    update_pagination_control();
 }
 
 function select_location(id) {
@@ -130,6 +255,7 @@ function select_location(id) {
 function clear_location_details() {
     location_details.hidden = true;
     select_location(null);
+    if (active_search) active_search.selectedId = null;
     document.dispatchEvent(new Event("location-cleared"));
 }
 
@@ -140,6 +266,7 @@ function close_location_details() {
 }
 
 function show_location_details(place) {
+    if (active_search) active_search.selectedId = place.id;
     select_location(place.id);
     details_heading.textContent = place.name;
     details_address.textContent = place.address;
@@ -185,6 +312,9 @@ function handle_results_click(event) {
 
 function clear_nearby_locations() {
     close_location_details();
+    clear_pagination();
+    set_results_loading(false);
+    update_results_count(0);
     nearby_layer?.clear();
     target_marker?.remove();
     target_marker = null;
@@ -204,10 +334,29 @@ function add_target_pin(location, name) {
     });
 }
 
-function render_locations(places, version) {
+function render_locations(places, version, append = false) {
     if (version !== search_version) return false;
     const result = normalizeGooglePlaces(places);
-    let scopedLocations = result.locations;
+
+    const existingLocations = active_search?.results || [];
+    const existingIds = new Set(existingLocations.map(place => place.id));
+    const newLocations = result.locations.filter(place => !existingIds.has(place.id));
+    try {
+        if (append) nearby_layer.appendLocations(newLocations);
+        else nearby_layer.setLocations(result.locations);
+    } catch {
+        set_location_error("Nearby locations could not be displayed. Please try again.");
+        return false;
+    }
+
+    if (active_search) {
+        active_search.results = append
+            ? [...existingLocations, ...newLocations]
+            : [...result.locations];
+        active_search.skippedCount = (active_search.skippedCount || 0) + result.skippedCount;
+    }
+
+    let scopedLocations = active_search?.results || [];
     if (active_search?.location && active_search.options.rankBy === "distance") {
         scopedLocations = sortLocationsByDistance(scopedLocations, active_search.location);
     } else if (active_search?.location) {
@@ -228,8 +377,9 @@ function render_locations(places, version) {
     location_results.replaceChildren();
     location_results_empty.hidden = scopedLocations.length > 0;
     location_results_empty.textContent = "No nearby locations were found.";
-    if (result.skippedCount > 0) {
-        set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
+    update_results_count(scopedLocations.length);
+    if (active_search?.skippedCount > 0) {
+        set_location_error(`${active_search.skippedCount} locations could not be mapped because their coordinates were invalid.`);
     }
     for (const place of scopedLocations) {
         rendered_locations.set(place.id, place);
@@ -259,12 +409,55 @@ function render_locations(places, version) {
         item.append(button);
         location_results.append(item);
     }
+    if (selectedId && scopedLocations.some(place => place.id === selectedId)) {
+        select_location(selectedId);
+    }
     return true;
+}
+
+function handle_pagination_failure(version) {
+    if (version !== search_version) return;
+    clear_pagination();
+    set_results_loading(false);
+    set_location_error("Additional nearby locations could not be loaded. Please try again.");
+}
+
+function load_more_locations() {
+    const state = pagination_state;
+    if (!state || state.version !== search_version || !state.hasNextPage || state.loading) return;
+
+    state.loading = true;
+    update_pagination_control();
+    set_results_loading(true, "Loading more nearby locations...");
+
+    const request_next_page = () => {
+        if (
+            pagination_state !== state
+            || state.version !== search_version
+            || !state.hasNextPage
+        ) return;
+        state.timer = null;
+        try {
+            if (state.pagination.nextPage() === false) handle_pagination_failure(state.version);
+        } catch {
+            handle_pagination_failure(state.version);
+        }
+    };
+
+    const wait = Math.max(0, state.readyAt - Date.now());
+    if (wait > 0) {
+        set_results_loading(true, "Waiting for more nearby locations...");
+        state.timer = setTimeout(request_next_page, wait);
+    } else {
+        request_next_page();
+    }
 }
 
 function find_nearby_locations(location, options, version, onComplete = () => {}) {
     if (!google.maps.places || !google.maps.places.PlacesService) {
         set_location_error("Nearby location search is temporarily unavailable. Please try again.");
+        clear_pagination();
+        set_results_loading(false);
         active_search = null;
         return;
     }
@@ -289,7 +482,11 @@ function find_nearby_locations(location, options, version, onComplete = () => {}
     }
 
     const places_service = new google.maps.places.PlacesService(google_map.innerMap);
-    places_service.nearbySearch(request, (places, status) => {
+    set_results_loading(true, "Loading nearby locations...");
+    let initial_page = true;
+    places_service.nearbySearch(request, (places, status, pagination) => {
+        const is_initial_page = initial_page;
+        initial_page = false;
         if (version !== search_version) return;
         if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
             nearby_layer.setLocations([]);
@@ -301,12 +498,26 @@ function find_nearby_locations(location, options, version, onComplete = () => {}
             return;
         }
         if (status !== google.maps.places.PlacesServiceStatus.OK || !Array.isArray(places)) {
-            set_location_error("Nearby location search failed. Please try again.");
-            active_search = null;
+            if (is_initial_page) {
+                set_location_error("Nearby location search failed. Please try again.");
+                clear_pagination();
+                set_results_loading(false);
+                active_search = null;
+            } else {
+                handle_pagination_failure(version);
+            }
             return;
         }
 
-        if (render_locations(places, version)) onComplete(location);
+        if (!render_locations(places, version, !is_initial_page)) {
+            clear_pagination();
+            set_results_loading(false);
+            return;
+        }
+
+        update_pagination(pagination, version);
+        set_results_loading(false);
+        if (is_initial_page) onComplete(location);
     });
 }
 
@@ -357,7 +568,6 @@ async function recenter_map(event, restored_context = null, search_override = nu
     const save_history = search_override?.saveHistory !== false;
     const submitted_context = restored_context || snapshot_map_context();
     set_location_error("");
-    clear_nearby_locations();
 
     if (!options) {
         set_location_error("Radius or search filters are invalid.");
@@ -376,12 +586,24 @@ async function recenter_map(event, restored_context = null, search_override = nu
         address,
         options,
         context: submitted_context,
-        location: search_override?.location || null
+        location: search_override?.location || null,
+        results: [],
+        skippedCount: 0,
+        selectedId: null
+    };
+    pending_search = {
+        restored_context: restored_context && { ...restored_context },
+        search_override: {
+            ...search_override,
+            address,
+            options: { ...options },
+            location: search_override?.location && { ...search_override.location },
+            saveHistory: search_override?.saveHistory
+        }
     };
 
-    if (!await googleMapsReady) {
-        set_location_error("Location search is temporarily unavailable. Please try again.");
-        active_search = null;
+    if (!await ensure_google_maps()) {
+        if (version === search_version) active_search = null;
         return;
     }
 
@@ -402,11 +624,15 @@ async function recenter_map(event, restored_context = null, search_override = nu
         }
     } catch {
         if (version === search_version) {
-            set_location_error("The map is not ready. Please try again.");
+            show_google_maps_error();
             active_search = null;
         }
         return;
     }
+
+    if (version !== search_version) return;
+    pending_search = null;
+    clear_nearby_locations();
 
     const context = submitted_context || snapshot_map_context();
     if (!restored_context && context && !context.bounds) {
@@ -504,6 +730,8 @@ async function recenter_map(event, restored_context = null, search_override = nu
 location_form.addEventListener("submit", recenter_map);
 location_results.addEventListener("click", handle_results_click);
 details_close.addEventListener("click", close_location_details);
+location_retry_button?.addEventListener("click", retry_google_maps);
+location_results_load_more?.addEventListener("click", load_more_locations);
 
 function update_radius_state() {
     const distance_selected = rank_by_input.value === "distance";
@@ -543,4 +771,10 @@ window.addEventListener("storage", event => {
         history_revision++;
         render_search_history();
     }
+});
+
+// Start loading while the page renders, but do not cache a rejected result.
+// Searches and the Retry action can request a fresh bounded loader sequence.
+void request_google_maps_load().catch(() => {
+    if (!active_search) show_google_maps_error();
 });
