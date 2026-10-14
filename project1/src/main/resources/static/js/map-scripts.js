@@ -11,6 +11,9 @@ let location_form = document.querySelector(".location-input");
 let google_map = document.querySelector(".google-map");
 let location_results = document.querySelector(".location-results-list");
 let location_results_empty = document.querySelector(".location-results-empty");
+let location_results_count = document.querySelector(".location-results-count");
+let location_results_loading = document.querySelector(".location-results-loading");
+let location_results_load_more = document.querySelector(".location-results-load-more");
 let location_error = document.querySelector(".location-error");
 let location_search_status = document.querySelector(".location-search-status");
 let location_search_status_text = document.querySelector(".location-search-status-text");
@@ -44,10 +47,14 @@ const SEARCH_STATES = Object.freeze({
     NO_RESULTS: "no-results",
     FAILED: "failed"
 });
+
 let googleMapsReady = loadGoogleMaps().then(() => true, () => {
     googleMapsReady = null;
     return false;
 });
+
+let pagination_state = null;
+const PLACES_PAGE_WAIT_MS = 2000;
 const PLACE_TYPES = new Set([
     "point_of_interest", "restaurant", "cafe", "bar", "park",
     "tourist_attraction", "supermarket", "shopping_mall"
@@ -213,6 +220,74 @@ function places_error_message(status) {
 
 set_search_state(SEARCH_STATES.IDLE);
 
+function set_results_loading(loading, message = "") {
+    location_results_loading.textContent = message;
+    location_results_loading.hidden = !loading;
+}
+
+function update_results_count(count) {
+    location_results_count.textContent = `${count} ${count === 1 ? "location" : "locations"}`;
+}
+
+function update_pagination_control() {
+    const available = Boolean(
+        pagination_state
+        && pagination_state.version === search_version
+        && pagination_state.hasNextPage
+    );
+    const waiting_for_api = Boolean(
+        available
+        && !pagination_state.loading
+        && Date.now() < pagination_state.readyAt
+    );
+    location_results_load_more.hidden = !available;
+    location_results_load_more.disabled = !available || pagination_state.loading || waiting_for_api;
+    location_results_load_more.setAttribute("aria-disabled", String(location_results_load_more.disabled));
+    location_results_load_more.setAttribute("aria-busy", String(Boolean(pagination_state?.loading)));
+    location_results_load_more.textContent = pagination_state?.loading
+        ? "Loading More Results..."
+        : "Load More Results";
+}
+
+function clear_pagination() {
+    if (pagination_state?.timer) clearTimeout(pagination_state.timer);
+    if (pagination_state?.readyTimer) clearTimeout(pagination_state.readyTimer);
+    pagination_state = null;
+    update_pagination_control();
+}
+
+function update_pagination(pagination, version) {
+    if (version !== search_version) return;
+    if (pagination_state?.timer) clearTimeout(pagination_state.timer);
+    if (pagination_state?.readyTimer) clearTimeout(pagination_state.readyTimer);
+
+    const hasNextPage = Boolean(
+        pagination
+        && pagination.hasNextPage
+        && typeof pagination.nextPage === "function"
+    );
+    pagination_state = hasNextPage
+        ? {
+            version,
+            pagination,
+            hasNextPage: true,
+            loading: false,
+            readyAt: Date.now() + PLACES_PAGE_WAIT_MS,
+            timer: null,
+            readyTimer: null
+        }
+        : null;
+    if (pagination_state) {
+        pagination_state.readyTimer = setTimeout(() => {
+            if (pagination_state?.version === version && !pagination_state.loading) {
+                pagination_state.readyTimer = null;
+                update_pagination_control();
+            }
+        }, PLACES_PAGE_WAIT_MS);
+    }
+    update_pagination_control();
+}
+
 function select_location(id) {
     for (const result of location_results.children) {
         const selected = result.dataset.locationId === id;
@@ -232,10 +307,12 @@ function close_location_details() {
     else map_adapter?.close?.();
     location_details.hidden = true;
     select_location(null);
+    if (active_search) active_search.selectedId = null;
     document.dispatchEvent(new Event("location-cleared"));
 }
 
 function show_location_details(place) {
+    if (active_search) active_search.selectedId = place.id;
     select_location(place.id);
     details_heading.textContent = place.name;
     details_address.textContent = place.address;
@@ -251,6 +328,9 @@ function show_location_details(place) {
 
 function clear_nearby_locations() {
     close_location_details();
+    clear_pagination();
+    set_results_loading(false);
+    update_results_count(0);
     nearby_layer?.clear();
     target_marker?.remove();
     target_marker = null;
@@ -269,39 +349,102 @@ function add_target_pin(location, name) {
     });
 }
 
-function render_locations(places, version) {
-    if (!is_current_search(version)) return null;
-    const result = normalizeGooglePlaces(places);
-    let scopedLocations = result.locations;
-    if (active_search?.location && active_search.options.rankBy === "distance") {
-        scopedLocations = sortLocationsByDistance(scopedLocations, active_search.location);
-    } else if (active_search?.location) {
-        scopedLocations = scopedLocations.map(place => ({
-            ...place,
-            distanceMeters: haversineDistanceMeters(active_search.location, place)
-        }));
-    }
-    try {
-        nearby_layer.setLocations(scopedLocations);
-    } catch {
-        fail_search(version, "Nearby locations could not be displayed. Please try again.");
+function render_locations(places, version, append = false) {
+    if (
+        version !== search_version ||
+        active_search?.version !== version
+    ) return null;
+
+    if (
+        append &&
+        ![
+            SEARCH_STATES.RESULTS,
+            SEARCH_STATES.NO_RESULTS
+        ].includes(active_search.status)
+    ) return null;
+
+    if (!append && !is_current_search(version)) {
         return null;
     }
-    location_results.replaceChildren();
-    location_results_empty.hidden = scopedLocations.length > 0;
-    location_results_empty.textContent = "No nearby locations were found.";
-    if (result.skippedCount > 0) {
-        set_location_error(`${result.skippedCount} locations could not be mapped because their coordinates were invalid.`);
+
+    const result = normalizeGooglePlaces(places);
+
+    const existingLocations = active_search?.results || [];
+    const existingIds = new Set(
+        existingLocations.map(place => place.id)
+    );
+
+    const newLocations = result.locations.filter(
+        place => !existingIds.has(place.id)
+    );
+
+    try {
+        if (append) {
+            nearby_layer.appendLocations(newLocations);
+        } else {
+            nearby_layer.setLocations(result.locations);
+        }
+    } catch {
+        set_location_error(
+            "Nearby locations could not be displayed. Please try again."
+        );
+        return null;
     }
+
+    active_search.results = append
+        ? [...existingLocations, ...newLocations]
+        : [...result.locations];
+
+    active_search.skippedCount =
+        (active_search.skippedCount || 0) + result.skippedCount;
+
+    let scopedLocations = active_search.results;
+
+    if (
+        active_search.location &&
+        active_search.options.rankBy === "distance"
+    ) {
+        scopedLocations = sortLocationsByDistance(
+            scopedLocations,
+            active_search.location
+        );
+    } else if (active_search.location) {
+        scopedLocations = scopedLocations.map(place => ({
+            ...place,
+            distanceMeters: haversineDistanceMeters(
+                active_search.location,
+                place
+            )
+        }));
+    }
+
+    const selectedId = active_search.selectedId || null;
+
+    location_results.replaceChildren();
+
+    location_results_empty.hidden = scopedLocations.length > 0;
+    location_results_empty.textContent =
+        "No nearby locations were found.";
+
+    update_results_count(scopedLocations.length);
+
+    if (active_search.skippedCount > 0) {
+        set_location_error(
+            `${active_search.skippedCount} locations could not be mapped because their coordinates were invalid.`
+        );
+    }
+
     for (const place of scopedLocations) {
         const item = document.createElement("li");
         item.className = "location-result";
         item.dataset.locationId = place.id;
+
         const button = document.createElement("button");
         button.className = "location-result-button";
         button.type = "button";
         button.setAttribute("aria-controls", "location-details");
         button.setAttribute("aria-pressed", "false");
+
         const name = document.createElement("strong");
         name.textContent = place.name;
         button.append(name);
@@ -311,26 +454,86 @@ function render_locations(places, version) {
             address.textContent = place.address;
             button.append(address);
         }
+
         if (Number.isFinite(place.distanceMeters)) {
             const distance = document.createElement("span");
             distance.className = "location-result-distance";
-            distance.textContent = `Straight-line distance: ${formatDistance(place.distanceMeters)}`;
+            distance.textContent =
+                `Straight-line distance: ${formatDistance(place.distanceMeters)}`;
             button.append(distance);
         }
+
         button.addEventListener("click", () => {
             nearby_layer.focusLocation(place.id);
             show_location_details(place);
         });
+
         item.append(button);
         location_results.append(item);
     }
+
+    if (
+        selectedId &&
+        scopedLocations.some(place => place.id === selectedId)
+    ) {
+        select_location(selectedId);
+    }
+
     return { count: scopedLocations.length };
 }
 
+function handle_pagination_failure(version) {
+    if (version !== search_version) return;
+    clear_pagination();
+    set_results_loading(false);
+    set_location_error("Additional nearby locations could not be loaded. Please try again.");
+}
+
+function load_more_locations() {
+    const state = pagination_state;
+    if (!state || state.version !== search_version || !state.hasNextPage || state.loading) return;
+
+    state.loading = true;
+    update_pagination_control();
+    set_results_loading(true, "Loading more nearby locations...");
+
+    const request_next_page = () => {
+        if (
+            pagination_state !== state
+            || state.version !== search_version
+            || !state.hasNextPage
+        ) return;
+        state.timer = null;
+        try {
+            if (state.pagination.nextPage() === false) handle_pagination_failure(state.version);
+        } catch {
+            handle_pagination_failure(state.version);
+        }
+    };
+
+    const wait = Math.max(0, state.readyAt - Date.now());
+    if (wait > 0) {
+        set_results_loading(true, "Waiting for more nearby locations...");
+        state.timer = setTimeout(request_next_page, wait);
+    } else {
+        request_next_page();
+    }
+}
+
 function find_nearby_locations(location, options, version, onComplete = () => {}) {
+function find_nearby_locations(
+    location,
+    options,
+    version,
+    onComplete = () => {}
+) {
     if (!is_current_search(version)) return;
+
     if (!globalThis.google?.maps?.places?.PlacesService) {
-        fail_search(version, "Nearby location search is temporarily unavailable. Please try again.");
+        fail_search(
+            version,
+            "Nearby location search is temporarily unavailable. Please try again."
+        );
         return;
     }
 
@@ -354,31 +557,142 @@ function find_nearby_locations(location, options, version, onComplete = () => {}
             request.maxPriceLevel = Number(options.price);
         }
 
-        const places_service = new google.maps.places.PlacesService(google_map.innerMap);
-        places_service.nearbySearch(request, (places, status) => {
-            if (!is_current_search(version)) return;
-            try {
-                const zero_results = status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS
-                    || status === "ZERO_RESULTS";
-                if (zero_results) {
-                    const rendered = render_locations([], version);
-                    if (rendered) onComplete(location, rendered.count);
-                    return;
-                }
-                const ok = status === google.maps.places.PlacesServiceStatus.OK || status === "OK";
-                if (!ok || !Array.isArray(places)) {
-                    fail_search(version, places_error_message(status));
-                    return;
-                }
+        const places_service = new google.maps.places.PlacesService(
+            google_map.innerMap
+        );
 
-                const rendered = render_locations(places, version);
-                if (rendered) onComplete(location, rendered.count);
-            } catch {
-                fail_search(version, "Nearby location search could not be completed. Check your connection and try again.");
+        set_results_loading(true, "Loading nearby locations...");
+
+        let initial_page = true;
+
+        places_service.nearbySearch(
+            request,
+            (places, status, pagination) => {
+                const is_initial_page = initial_page;
+                initial_page = false;
+
+                if (
+                    version !== search_version ||
+                    active_search?.version !== version
+                ) return;
+
+                if (
+                    is_initial_page &&
+                    !is_current_search(version)
+                ) return;
+
+                if (
+                    !is_initial_page &&
+                    ![
+                        SEARCH_STATES.RESULTS,
+                        SEARCH_STATES.NO_RESULTS
+                    ].includes(active_search.status)
+                ) return;
+
+                try {
+                    const zero_results =
+                        status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS ||
+                        status === "ZERO_RESULTS";
+
+                    if (zero_results) {
+                        if (is_initial_page) {
+                            const rendered = render_locations(
+                                [],
+                                version
+                            );
+
+                            if (rendered) {
+                                onComplete(location, 0);
+                            }
+                        }
+
+                        clear_pagination();
+                        set_results_loading(false);
+                        return;
+                    }
+
+                    const ok =
+                        status === google.maps.places.PlacesServiceStatus.OK ||
+                        status === "OK";
+
+                    if (!ok || !Array.isArray(places)) {
+                        if (is_initial_page) {
+                            fail_search(
+                                version,
+                                places_error_message(status)
+                            );
+                        } else {
+                            handle_pagination_failure(version);
+                        }
+
+                        clear_pagination();
+                        set_results_loading(false);
+                        return;
+                    }
+
+                    const rendered = render_locations(
+                        places,
+                        version,
+                        !is_initial_page
+                    );
+
+                    if (!rendered) {
+                        if (is_initial_page) {
+                            fail_search(
+                                version,
+                                "Nearby locations could not be displayed. Please try again."
+                            );
+                        } else {
+                            handle_pagination_failure(version);
+                        }
+
+                        clear_pagination();
+                        set_results_loading(false);
+                        return;
+                    }
+
+                    update_pagination(pagination, version);
+                    set_results_loading(false);
+
+                    if (is_initial_page) {
+                        onComplete(location, rendered.count);
+                    } else {
+                        const next_state = rendered.count > 0
+                            ? SEARCH_STATES.RESULTS
+                            : SEARCH_STATES.NO_RESULTS;
+
+                        active_search.status = next_state;
+
+                        set_search_state(
+                            next_state,
+                            rendered.count > 0
+                                ? `${rendered.count} nearby ${rendered.count === 1 ? "location" : "locations"} found.`
+                                : "No nearby locations were found."
+                        );
+                    }
+                } catch {
+                    if (is_initial_page) {
+                        fail_search(
+                            version,
+                            "Nearby location search could not be completed. Check your connection and try again."
+                        );
+                    } else {
+                        handle_pagination_failure(version);
+                    }
+
+                    clear_pagination();
+                    set_results_loading(false);
+                }
             }
-        });
+        );
     } catch {
-        fail_search(version, "Nearby location search could not connect. Check your connection and try again.");
+        fail_search(
+            version,
+            "Nearby location search could not connect. Check your connection and try again."
+        );
+
+        clear_pagination();
+        set_results_loading(false);
     }
 }
 
@@ -460,7 +774,10 @@ async function recenter_map(event, restored_context = null, search_override = nu
         address,
         options,
         context: submitted_context,
-        location: search_override?.location || null
+        location: search_override?.location || null,
+        results: [],
+        skippedCount: 0,
+        selectedId: null
     };
     set_search_state(SEARCH_STATES.SEARCHING);
 
@@ -590,6 +907,7 @@ async function recenter_map(event, restored_context = null, search_override = nu
 
 location_form.addEventListener("submit", recenter_map);
 details_close.addEventListener("click", close_location_details);
+location_results_load_more.addEventListener("click", load_more_locations);
 
 function update_radius_state() {
     const distance_selected = rank_by_input.value === "distance";

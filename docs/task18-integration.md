@@ -132,7 +132,7 @@ result updates; they do not implement the team's search or filter features.
 Run the dependency-free JavaScript tests with Node.js 22:
 
 ```sh
-node --experimental-default-type=module --test tests/task18/*.test.mjs
+node --test tests/task18/*.test.mjs
 ```
 
 Run the existing application tests with Java 21 and Maven:

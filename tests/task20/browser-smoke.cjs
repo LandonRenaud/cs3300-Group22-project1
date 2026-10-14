@@ -48,15 +48,15 @@ customElements.define('gmp-map',MapElement);
    if(name==='/api/map-config'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({apiKey:'fixture-maps'}));return;}
    try {
      const file = path.resolve(root,'.'+name);
-     if(!file.startsWith(root+'/')) throw new Error('Invalid file');
+     if(file !== root && !file.startsWith(root+path.sep)) throw new Error('Invalid file');
      const content = await fs.readFile(file);
-     res.setHeader('Content-Type', {'.html':'text/html','.js':'text/javascript','.css':'text/css'}[path.extname(file)] || 'application/octet-stream');res.end(content);
+     res.setHeader('Content-Type', {'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css'}[path.extname(file)] || 'application/octet-stream');res.end(content);
    } catch {res.statusCode=404;res.end('Not found');}
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  let browser;
  try {
-  browser = await chromium.launch({headless:true,channel:'chrome'});
+  browser = await chromium.launch({headless:true});
   const context = await browser.newContext({viewport:{width:1440,height:900}});
   await context.route('https://maps.googleapis.com/**',route=>route.fulfill({contentType:'text/javascript',body:mapsFixture}));
   await context.route('https://identitytoolkit.googleapis.com/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({users:[{localId:'browser-fixture-user',email:'fixture@example.test'}]})}));
