@@ -58,7 +58,10 @@
                             <option value="distance">Distance</option>
                         </select>
                     </details>
-                    <p class="form-message location-error" role="alert" hidden></p>
+                    <p class="form-message location-error" role="alert" hidden>
+                        <span class="location-error-message"></span>
+                        <button class="button button-small location-error-retry" type="button" hidden>Retry</button>
+                    </p>
                     <button type="submit" class="button map-search-button">Search</button>
                 </form>
                 <details class="search-history" hidden>
