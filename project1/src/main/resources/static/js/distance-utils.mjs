@@ -1,5 +1,6 @@
 const EARTH_RADIUS_METERS = 6371008.8;
 
+// Ensure the search coordinates are bounded
 function validCoordinate(value) {
   return Boolean(value && Number.isFinite(value.lat) && Number.isFinite(value.lng)
     && value.lat >= -90 && value.lat <= 90
