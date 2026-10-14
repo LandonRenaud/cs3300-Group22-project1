@@ -1,5 +1,11 @@
 # cs3300-project1
 
+## Prerequisites
+
+- Java 21
+- Maven
+- Node.js 22 for the JavaScript test suite
+
 ## Build and run
 
 From the `project1` directory, start the website:
