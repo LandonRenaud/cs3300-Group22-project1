@@ -38,6 +38,10 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .location-search input { padding: .55rem .65rem; }
 .location-input .button { margin-top: .15rem; padding: .6rem .9rem; }
 .location-error { min-height: 0; margin: .1rem 0 0 !important; }
+.location-search-status { display: flex; align-items: center; gap: .45rem; min-height: 1.25rem; margin: .1rem 0 0 !important; color: #526070; font-size: .9rem; }
+.location-search-loading { width: .8rem; height: .8rem; flex: 0 0 auto; border: .12rem solid #c9d4cb; border-top-color: #19332e; border-radius: 50%; animation: location-search-spin .8s linear infinite; }
+@keyframes location-search-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .location-search-loading { animation: none; } }
 .advanced-settings { display: grid; gap: .4rem; margin-top: .35rem; padding-top: .35rem; border-top: 1px solid #dbe1ea; }
 .advanced-settings summary { cursor: pointer; font-weight: 700; margin-bottom: .2rem; }
 .advanced-settings select { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding: .55rem .65rem; background: white; }

@@ -60,8 +60,10 @@ export class Element {
 export async function setup(t, importLibrary = async () => ({}), userId = null, storage = null) {
   const selectors = [
     'map-input-location', 'location-input', 'google-map', 'location-results-list',
-    'location-results-empty', 'location-results-count', 'location-results-loading',
-    'location-results-load-more', 'location-error', 'map-input-keyword', 'map-input-radius',
+'location-results-empty', 'location-results-count', 'location-results-loading',
+    'location-results-load-more', 'location-error', 'location-search-status',
+    'location-search-status-text', 'location-search-loading', 'map-search-button',
+    'map-input-keyword', 'map-input-radius',
     'map-input-price', 'map-input-open-now', 'map-input-rank-by', 'map-input-place-type',
     'location-details', 'location-details-heading', 'location-details-address',
     'location-details-rating', 'location-details-types', 'location-details-coordinates',
@@ -85,6 +87,10 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     elements['map-input-rank-by']
   );
   elements['location-details'].hidden = true;
+  elements['location-search-loading'].hidden = true;
+  elements['location-search-status'].append(
+    elements['location-search-loading'], elements['location-search-status-text']
+  );
   elements['map-input-radius'].value = '5000';
   elements['map-input-rank-by'].value = 'prominence';
   elements['map-input-place-type'].value = 'point_of_interest';
