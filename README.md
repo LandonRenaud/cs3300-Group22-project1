@@ -19,11 +19,16 @@ Set the Google Maps browser key in the local environment before starting the
 app. Restrict the key to the Maps JavaScript API and the website referrers used
 by the app.
 
+#
+### Windows
+
 ```powershell
 $env:GOOGLE_MAPS_API_KEY = "your-google-maps-browser-key"
 mvn spring-boot:run
 ```
 
+#
+### Linux/MacOS
 ```sh
 $ export GOOGLE_MAPS_API_KEY="your-google-maps-browser-key"
 $ mvn spring-boot:run
@@ -34,13 +39,17 @@ $ mvn spring-boot:run
 Enable **Authentication > Sign-in method > Email/Password** in the Firebase
 project. Set its Browser Key in the local environment before starting the app:
 
-To find the `firebase-browser-key`, go to the project on Google Cloud and go to "APIs & Services". Here, click on "Credentials" and the key should be able to be seen and able to be copy/pasted under the option titled "Browser key (auto created by Firebase)". 
+To find the `firebase-browser-key`, go to the project on Google Cloud and go to "APIs & Services". Here, click on "Credentials" and the key should be able to be seen and able to be copy/pasted under the option titled "Browser key (auto created by Firebase)".
+
+### Windows
 
 ```powershell
 $env:FIREBASE_API_KEY = "your-firebase-browser-key"
 $env:FIREBASE_DATABASE_URL = "https://your-project-default-rtdb.firebaseio.com"
 mvn spring-boot:run
 ```
+
+### Linux/MacOS
 
 ```sh
 $ export FIREBASE_API_KEY="your-firebase-browser-key"
@@ -193,3 +202,11 @@ node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.t
 
 History also stores the effective geocoded search center for named-location
 replay, while keyword-only searches retain their original map center context.
+
+# Team Developers and Main Tasks: 
+1. Sergio Chavez - Authentication Setup/Code, Presentation Design, Testing Application
+2. Kevin Chen - Google Maps Setup, Lat/Long Input
+3. Renkai Chen - Searching / Search Filtering, Basic Map Pins, Frontend Design
+4. Lijie Liu - Map Integration, Search History, Testing & Documentation
+5. Landon Renaud - GCP hosting & CI/CD pipeline, User Review functionality
+6. James Tan - Search Improvements, Firebase Reviews, CI/CD, Presentation Content
