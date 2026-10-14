@@ -261,7 +261,7 @@ test('changing an active filter refreshes once and the newest pending filter win
   await app.submit('Atlanta');
   app.geocode(0, 'Atlanta', 33.77, -84.39);
   app.elements['map-input-place-type'].value = 'cafe';
-  await app.elements['map-input-place-type'].emit('change');
+  await app.elements['map-input-place-type'].dispatchEvent(new Event('change', { bubbles: true }));
   assert.equal(app.searches.length, 2);
   assert.equal(app.searches[1].request.type, 'cafe');
   app.elements['map-input-place-type'].value = 'park';
@@ -272,6 +272,49 @@ test('changing an active filter refreshes once and the newest pending filter win
   assert.equal(app.rows().length, 0);
   app.searches[2].callback([place('current')], 'OK');
   assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['current']);
+});
+
+test('a native bubbling Location Type change refreshes results and markers without submitting or adding history', async t => {
+  const storage = {
+    values: new Map(),
+    getItem(key) { return this.values.get(key) ?? null; },
+    setItem(key, value) { this.values.set(key, value); },
+    removeItem(key) { this.values.delete(key); },
+  };
+  const app = await setup(t, undefined, 'user-a', storage);
+  app.elements['map-input-keyword'].value = 'coffee';
+  app.elements['map-input-radius'].value = '1200';
+  app.elements['map-input-price'].value = '2';
+  app.elements['map-input-open-now'].checked = true;
+  app.elements['map-input-rank-by'].value = 'prominence';
+  await app.submit('Atlanta');
+  app.geocode(0, 'Atlanta', 33.77, -84.39);
+  app.searches[0].callback([place('old', 'Old result')], 'OK');
+  assert.equal(app.elements['location-input'].listeners.has('change'), true);
+  assert.equal(app.elements['search-history-list'].children.length, 1);
+
+  app.map.center = { lat: 34, lng: -85 };
+  app.map.zoom = 10;
+  app.elements['map-input-place-type'].value = 'cafe';
+  await app.elements['map-input-place-type'].dispatchEvent(new Event('change', { bubbles: true }));
+
+  assert.equal(app.searches.length, 2);
+  assert.equal(app.geocodes.length, 1);
+  assert.equal(app.searches[1].request.type, 'cafe');
+  assert.deepEqual(app.searches[1].request.location, { lat: 33.77, lng: -84.39 });
+  assert.equal(app.searches[1].request.keyword, 'coffee');
+  assert.equal(app.searches[1].request.radius, 1200);
+  assert.equal(app.searches[1].request.minPriceLevel, 2);
+  assert.equal(app.searches[1].request.maxPriceLevel, 2);
+  assert.equal(app.searches[1].request.openNow, true);
+  assert.equal(app.searches[1].request.rankBy, 'prominence-rank');
+  assert.deepEqual(app.map.center, { lat: 34, lng: -85 });
+  assert.equal(app.map.zoom, 10);
+
+  app.searches[1].callback([place('new', 'New result')], 'OK');
+  assert.deepEqual(app.rows().map(row => row.dataset.locationId), ['new']);
+  assert.deepEqual(app.liveMarkers().map(marker => marker.title), ['Atlanta', 'New result']);
+  assert.equal(app.elements['search-history-list'].children.length, 1);
 });
 
 test('changing a filter before the first search does not launch a request', async t => {

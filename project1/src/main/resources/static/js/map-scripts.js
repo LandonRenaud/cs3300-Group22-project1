@@ -39,6 +39,9 @@ const PLACE_TYPES = new Set([
     "point_of_interest", "restaurant", "cafe", "bar", "park",
     "tourist_attraction", "supermarket", "shopping_mall"
 ]);
+const FILTER_INPUTS = new Set([
+    place_type_input, price_input, open_now_input, rank_by_input, radius_input
+]);
 
 function render_search_history() {
     if (history_store && history_view) {
@@ -308,6 +311,7 @@ async function recenter_map(event, restored_context = null, search_override = nu
     const address = search_override?.address ?? map_input_location.value.trim();
     const options = search_override?.options ?? get_search_options();
     const history_version = history_revision;
+    const save_history = search_override?.saveHistory !== false;
     const submitted_context = restored_context || snapshot_map_context();
     set_location_error("");
     clear_nearby_locations();
@@ -381,22 +385,26 @@ async function recenter_map(event, restored_context = null, search_override = nu
             location: searchCenter && { ...searchCenter }
         };
         active_search.status = "complete";
-        if (history_version === history_revision && history_store) {
+        if (save_history && history_version === history_revision && history_store) {
             history_store.add({ query: address, options, context: savedContext });
             render_search_history();
         }
     };
     const coordinates = parse_coordinates(address);
-    const use_location = (location, addPin = Boolean(address)) => {
+    const use_location = (location, addPin = Boolean(address), preserveMapState = false) => {
         if (version !== search_version) return;
         active_search.location = location;
-        google_map.innerMap.setCenter(location);
+        if (!preserveMapState) google_map.innerMap.setCenter(location);
         if (addPin) add_target_pin(location, address);
         find_nearby_locations(location, options, version, record_search);
     };
 
     if (search_override?.location) {
-        use_location(search_override.location, Boolean(address));
+        use_location(
+            search_override.location,
+            Boolean(address),
+            search_override.preserveMapState === true
+        );
         return;
     }
 
@@ -466,21 +474,22 @@ function refresh_active_search() {
         return;
     }
     if (JSON.stringify(options) === JSON.stringify(base.options)) return;
-    return recenter_map({ preventDefault() {} }, base.context, {
+    return recenter_map({ preventDefault() {} }, null, {
         address: base.address,
         options,
-        location: base.location
+        location: base.location,
+        preserveMapState: Boolean(base.location),
+        saveHistory: false
     });
 }
 
-function handle_filter_change() {
+function handle_filter_change(event) {
+    if (!FILTER_INPUTS.has(event.target)) return;
     update_radius_state();
     return refresh_active_search();
 }
 
-for (const input of [place_type_input, price_input, open_now_input, rank_by_input, radius_input]) {
-    input.addEventListener("change", handle_filter_change);
-}
+location_form.addEventListener("change", handle_filter_change);
 
 window.addEventListener("storage", event => {
     if (history_store && (event.key === null || event.key === history_store.storageKey)) {
