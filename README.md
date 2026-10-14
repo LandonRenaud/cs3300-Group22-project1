@@ -185,6 +185,9 @@ disabled in that mode. Results show straight-line distance estimates calculated
 from the effective search center, while distance ranking sorts results nearest
 first.
 
+Google Places pagination support and the legacy API limitations are documented
+in [Google Places pagination](docs/google-places-pagination.md).
+
 Run its JavaScript tests from the repository root with Node.js 22:
 
 ```sh

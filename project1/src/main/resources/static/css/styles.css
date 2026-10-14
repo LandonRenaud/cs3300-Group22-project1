@@ -69,12 +69,14 @@ input { border: 1px solid #b7c1d0; border-radius: .35rem; font: inherit; padding
 .target-location-pin::after { color: #fff; content: "★"; font-size: 1.25rem; transform: rotate(45deg); }
 .location-results { min-height: 0; max-height: none; overflow-y: auto; }
 .location-results h2 { font-size: 1.15rem; }
+.location-results-count, .location-results-loading { color: #526070; margin: 0 0 .6rem; font-size: .9rem; }
 .location-results-empty { color: #526070; margin: 0; }
 .location-results-list { display: grid; gap: .65rem; margin: 0; padding-left: 1.5rem; }
 .location-result { border: 1px solid #dbe1ea; border-radius: .45rem; background: #f7f9fc; overflow: hidden; }
 .location-result-button { display: block; width: 100%; padding: .7rem .75rem; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
 .location-result-button:hover, .location-result-button:focus-visible { background: #e9eef2; }
 .location-result strong { display: block; margin-bottom: .2rem; }
+.location-results-load-more { width: 100%; margin-top: .8rem; }
 @media (max-width: 760px) {
   .map-body { height: 100vh; min-height: 700px; overflow: auto; }
   .map-body .map-page { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(360px, 1fr); }
