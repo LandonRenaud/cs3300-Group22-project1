@@ -50,7 +50,32 @@ jobs:
           node-version: "22"
 
       - name: Run JavaScript tests
-        run: node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+        run: node --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+
+  browser-tests:
+    name: Browser Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install browser test dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser regression tests
+        run: node --test tests/task20/browser-regression.cjs
+
+      - name: Run existing browser smoke test
+        run: node tests/task20/browser-smoke.cjs
 
   deploy:
     name: Deploy to Google App Engine
@@ -58,6 +83,7 @@ jobs:
     needs:
       - maven-tests
       - location-marker-tests
+      - browser-tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read

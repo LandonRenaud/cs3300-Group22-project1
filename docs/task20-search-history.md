@@ -47,7 +47,7 @@ rejects that combination.
 Run all JavaScript tests from the repository root with Node 22:
 
 ```sh
-node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+node --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
 ```
 
 The TASK-20 suite covers per-account persistence, reload, deduplication, the
@@ -61,13 +61,27 @@ cd project1
 mvn --batch-mode test
 ```
 
-An optional browser smoke test uses Playwright and an installed Google Chrome:
+The existing browser smoke test uses the Playwright-managed Chromium browser:
 
 ```sh
-# Set PLAYWRIGHT_MODULE to an installed Playwright package path if it is not
-# available through Node's normal module resolution.
+npm ci
+npx playwright install chromium
 node tests/task20/browser-smoke.cjs
 ```
+
+The browser regression suite runs the production HTML and modules in Chromium
+with deterministic Maps, Places, Firebase Auth, and Realtime Database fixtures:
+
+```sh
+npm ci
+npx playwright install chromium
+node --test tests/task20/browser-regression.cjs
+```
+
+It verifies native authentication redirects, search submission, automatic
+Location Type refresh, map/list selection, history replay, owner-only review
+controls, empty/error states, and stale-response handling. CI installs
+Chromium with Linux dependencies and runs this suite before deployment.
 
 It serves the production files locally, supplies deterministic Maps and Firebase
 HTTP fixtures, and checks empty state, persistence, replay, removal, the history

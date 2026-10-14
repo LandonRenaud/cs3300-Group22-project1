@@ -159,6 +159,27 @@ test('each update replaces old markers and reports the accepted results', () => 
   assert.equal(adapter.fittedLocations.length, 0);
 });
 
+test('appending locations keeps existing markers and deduplicates IDs', () => {
+  const adapter = createAdapter();
+  const layer = createLocationLayer(adapter);
+
+  layer.setLocations([location('one'), location('two')]);
+  const existingMarkers = [...adapter.markers];
+  const result = layer.appendLocations([
+    location('two', { name: 'Duplicate existing result' }),
+    location('three'),
+    location('three', { name: 'Duplicate page result' }),
+  ]);
+
+  assert.equal(result.displayedCount, 3);
+  assert.equal(result.addedCount, 1);
+  assert.equal(result.duplicateCount, 2);
+  assert.ok(existingMarkers.every(marker => marker.removeCalls === 0));
+  assert.deepEqual(adapter.markers.filter(marker => marker.removeCalls === 0).map(marker => marker.place.id), [
+    'one', 'two', 'three'
+  ]);
+});
+
 test('repeated results do not leave multiple live copies of the markers', () => {
   const adapter = createAdapter();
   const layer = createLocationLayer(adapter);

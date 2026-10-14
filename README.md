@@ -1,4 +1,8 @@
-# cs3300-project1
+# LocalLens
+
+## Overview
+
+LocalLens is a app that lets you discover what's around you. It helps users find restaurants, shops, parks, and other points of interests. Users can search by location, adjust filters (e.g. place type, distance, price range, etc.), and view results on a interactive map. Users are also able to read reviews left by other members of the community and leave reviews of their own.
 
 ## Build and run
 
@@ -179,10 +183,13 @@ disabled in that mode. Results show straight-line distance estimates calculated
 from the effective search center, while distance ranking sorts results nearest
 first.
 
+Google Places pagination support and the legacy API limitations are documented
+in [Google Places pagination](docs/google-places-pagination.md).
+
 Run its JavaScript tests from the repository root with Node.js 22:
 
 ```sh
-node --experimental-default-type=module --test tests/task18/*.test.mjs
+node --test tests/task18/*.test.mjs
 ```
 
 ## Search history (TASK-20)
@@ -195,8 +202,21 @@ are saved per account in the current browser. See
 Run all JavaScript tests with Node.js 22:
 
 ```sh
-node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+node --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
 ```
+
+Browser regression tests run the production pages in Chromium with deterministic
+Google Maps, Places, Firebase Auth, and Realtime Database fixtures:
+
+```sh
+npm ci
+npx playwright install chromium
+node --test tests/task20/browser-regression.cjs
+node tests/task20/browser-smoke.cjs
+```
+
+GitHub Actions installs Chromium with Linux dependencies and runs both browser
+suites. No Google, Firebase, or Google Cloud credentials are required.
 
 History also stores the effective geocoded search center for named-location
 replay, while keyword-only searches retain their original map center context.
