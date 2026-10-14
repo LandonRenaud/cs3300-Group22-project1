@@ -35,8 +35,25 @@ export class Element {
     this.listeners.get(name).add(callback);
   }
   removeEventListener(name, callback) { this.listeners.get(name)?.delete(callback); }
-  emit(name) {
-    return Promise.all([...this.listeners.get(name) || []].map(callback => callback({ preventDefault() {} })));
+  emit(name, event = {}) {
+    const target = event.target || this;
+    const dispatched = {
+      ...event,
+      target,
+      currentTarget: this,
+      preventDefault: event.preventDefault || (() => {})
+    };
+    const ownListeners = Promise.all(
+      [...this.listeners.get(name) || []].map(callback => callback(dispatched))
+    );
+    if (!this.parentElement) return ownListeners;
+    return Promise.all([
+      ownListeners,
+      this.parentElement.emit(name, { ...event, target, preventDefault: dispatched.preventDefault })
+    ]);
+  }
+  dispatchEvent(event) {
+    return this.emit(event.type, { target: this });
   }
 }
 
@@ -60,6 +77,12 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     comment: elements['review-comment'],
   };
   elements['review-form'].append(elements['review-rating']);
+  elements['location-input'].append(
+    elements['map-input-location'], elements['map-input-keyword'],
+    elements['map-input-radius'], elements['map-input-price'],
+    elements['map-input-place-type'], elements['map-input-open-now'],
+    elements['map-input-rank-by']
+  );
   elements['location-details'].hidden = true;
   elements['map-input-radius'].value = '5000';
   elements['map-input-rank-by'].value = 'prominence';

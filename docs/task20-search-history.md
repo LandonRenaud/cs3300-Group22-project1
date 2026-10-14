@@ -10,6 +10,8 @@ this account's history from this browser.
 
 - Successful searches with no matches are included. Empty input, provider errors,
   failed geocoding, and superseded requests are excluded.
+- Automatic filter refreshes update the current results without creating an
+  additional history entry; an explicit Search submission remains recordable.
 - Repeating an equivalent search moves it to the top. Query/keyword comparison
   ignores case and surrounding whitespace. Filters and map context distinguish
   searches; coordinate searches ignore the previous viewport for deduplication.
