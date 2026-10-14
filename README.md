@@ -202,3 +202,11 @@ node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.t
 
 History also stores the effective geocoded search center for named-location
 replay, while keyword-only searches retain their original map center context.
+
+# Team Developers and Main Tasks: 
+1. Sergio Chavez - Authentication Setup/Code, Presentation Design, Testing Application
+2. Kevin Chen - Google Maps Setup, Lat/Long Input
+3. Renkai Chen - Searching / Search Filtering, Basic Map Pins, Frontend Design
+4. Lijie Liu - Map Integration, Search History, Testing & Documentation
+5. Landon Renaud - GCP hosting & CI/CD pipeline, User Review functionality
+6. James Tan - Search Improvements, Firebase Reviews, CI/CD, Presentation Content
