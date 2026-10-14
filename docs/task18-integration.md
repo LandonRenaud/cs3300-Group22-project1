@@ -57,7 +57,8 @@ Both adapters build popup text with DOM nodes and `textContent`.
 
 The production `map-scripts.js`:
 
-1. Captures the address and filter values when the form is submitted.
+1. Captures the address and filter values when the form is submitted; after a
+   completed search, filter changes use the same request flow automatically.
 2. Waits for the Google maps, marker, geocoding, and places libraries and the
    `gmp-map` element before initializing one adapter and location layer.
 3. Keeps the existing search-center behavior and custom starred marker.
@@ -75,8 +76,9 @@ The production `map-scripts.js`:
    while prominence-ranked searches retain provider order.
 
 All existing keyword, radius, price, open-now, ranking, and type filters are kept.
-Production updates preserve the searched center and do not automatically fit nearby
-results; this keeps the search-center pin in view. The Location field is geocoded
+Production updates preserve the current map view and do not automatically fit nearby
+results; this keeps the search-center pin in view. Filter refreshes reuse the
+committed search center without creating a new history entry. The Location field is geocoded
 as the search center, and results are not filtered against the viewport that
 existed before the search. Explicit fitting is available to
 other callers:
