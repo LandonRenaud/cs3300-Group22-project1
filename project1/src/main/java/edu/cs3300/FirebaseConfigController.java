@@ -8,11 +8,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+// API Code for Firebase configuration endpoint
 @RestController
 public class FirebaseConfigController {
     private final String apiKey;
     private final String databaseUrl;
 
+    // Constructor to inject Firebase API key and database URL from environment variables
     public FirebaseConfigController(
             @Value("${FIREBASE_API_KEY:}") String apiKey,
             @Value("${FIREBASE_DATABASE_URL:}") String databaseUrl) {
@@ -20,6 +22,7 @@ public class FirebaseConfigController {
         this.databaseUrl = databaseUrl;
     }
 
+    // Endpoint to retrieve Firebase configuration
     @GetMapping("/api/firebase-config")
     public ResponseEntity<Map<String, String>> getFirebaseConfig() {
         if (apiKey.isBlank()) {
