@@ -1,3 +1,4 @@
+<!-- Page that handles log in -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -28,6 +29,7 @@
     </form>
   </main>
   <script type="module">
+    // This script handles the login functionality for the LocalLens application. It imports necessary functions from external JavaScript modules, manages form submission, and handles user authentication with Firebase.
     import { firebaseConfigReady, signInWithEmailAndPassword } from "./js/firebase-auth.js";
     import { redirectIfAuthenticated } from "./js/auth-guard.js";
     const form = document.querySelector("#login-form");
