@@ -40,6 +40,7 @@ const PLACE_TYPES = new Set([
     "tourist_attraction", "supermarket", "shopping_mall"
 ]);
 
+// Load the search history
 function render_search_history() {
     if (history_store && history_view) {
         history_view.render(history_store.list(), { persistent: history_store.persistent });
