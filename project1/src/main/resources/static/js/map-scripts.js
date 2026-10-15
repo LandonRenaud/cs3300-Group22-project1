@@ -55,6 +55,7 @@ const FILTER_INPUTS = new Set([
     place_type_input, price_input, open_now_input, rank_by_input, radius_input
 ]);
 
+// Load the search history
 function render_search_history() {
     if (history_store && history_view) {
         history_view.render(history_store.list(), { persistent: history_store.persistent });

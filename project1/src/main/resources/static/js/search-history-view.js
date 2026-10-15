@@ -2,23 +2,29 @@ function searchLabel(entry) {
   return entry.query || entry.options.keyword || "Current map area";
 }
 
+// Returns a list of chosen filters
 function describeFilters(entry) {
   const { keyword, type, openNow, rankBy, radius, price } = entry.options;
   const filters = [];
+
   if (entry.query && keyword) filters.push(`Keyword: ${keyword}`);
+
   if (type && type !== "point_of_interest") {
     const label = type.replaceAll("_", " ");
     filters.push(label.charAt(0).toUpperCase() + label.slice(1));
   }
+
   if (rankBy !== "distance" && Number.isFinite(radius)) {
     filters.push(radius >= 1000 ? `Radius: ${radius / 1000} km` : `Radius: ${radius} m`);
   }
+
   if (price !== null && price !== undefined && price !== "") {
     const level = Number(price);
     if (Number.isInteger(level) && level >= 0 && level <= 4) {
       filters.push(level === 0 ? "Free" : "$".repeat(level));
     }
   }
+
   if (openNow) filters.push("Open now");
   filters.push(rankBy === "distance" ? "Rank: distance" : "Rank: prominence");
   return filters.join(" · ");

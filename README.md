@@ -202,7 +202,6 @@ Set the Google Maps browser key in the local environment before starting the
 app. Restrict the key to the Maps JavaScript API and the website referrers used
 by the app.
 
-#
 ### Windows
 
 ```powershell
@@ -210,7 +209,6 @@ $env:GOOGLE_MAPS_API_KEY = "your-google-maps-browser-key"
 mvn spring-boot:run
 ```
 
-#
 ### Linux/MacOS
 ```sh
 $ export GOOGLE_MAPS_API_KEY="your-google-maps-browser-key"
