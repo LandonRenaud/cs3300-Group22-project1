@@ -4,6 +4,7 @@ export function canWriteReview(reviews, userId) {
   return Boolean(userId) && !reviews?.[userId];
 }
 
+// Makes sure the review rating is between 1 and 5
 export function isValidReviewRating(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 1 && value <= 5;
 }
