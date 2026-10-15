@@ -1,17 +1,193 @@
-# cs3300-project1
+# LocalLens
 
-## Build and run
+## Overview
 
-From the `project1` directory, start the website:
+LocalLens is a app that lets you discover what's around you. It helps users find restaurants, shops, parks, and other points of interests. Users can search by location, adjust filters (e.g. place type, distance, price range, etc.), and view results on a interactive map. Users are also able to read reviews left by other members of the community and leave reviews of their own.
+
+## Release Notes
+
+### Functionality delivered
+
+- Create an account and sign in with Firebase Email/Password authentication.
+- Search for nearby places by address, coordinates, or the current map center;
+  filter and rank results, view them on a map, and load additional result pages.
+- View community ratings and reviews for a selected place.
+- Use the responsive web interface to explore local places.
+
+### Team-selected additional features
+
+- **Community reviews:** signed-in users can add one review per place and delete
+  their own review. Reviews include a 1–5 rating and comment.
+- **Search history:** signed-in users can restore or remove recent searches.
+  The latest 10 entries are kept per account in the current browser.
+
+### Significant bug fixes
+
+- A development-time Firebase authentication issue that prevented the sign-in
+  flow from working correctly was debugged and resolved. No authentication bug
+  is currently known.
+
+### Known bugs, defects, and limitations
+
+- No known application bugs or defects at this time. Google Maps, Firebase, and
+  cloud deployment still depend on valid project configuration, credentials,
+  service availability, and applicable quotas.
+- LocalLens currently uses Google Places API (Legacy) nearby search. Migration
+  to Places API (New) is not included. New Google Cloud projects may not be able
+  to enable the legacy Places service; see
+  [Google Places pagination](docs/google-places-pagination.md) for the API
+  limitations.
+- There is no known incomplete core application feature beyond those service
+  and synchronization limitations.
+
+## Installation and Run Guide
+
+### Prerequisites
+
+- A computer with a modern browser and internet access. No special hardware is
+  required.
+- JDK 21 and Apache Maven 3.6.3 or newer, available on `PATH`.
+- A Firebase project configured for Email/Password Authentication and Realtime
+  Database.
+- A Google Cloud project with the Google Maps JavaScript API and the Places
+  service enabled, billing configured as required by Google, and a browser API
+  key. See the Places API limitation in [Release Notes](#release-notes).
+- For running the JavaScript and browser tests only: Node.js 22 and npm. These
+  are not required to run the application.
+
+### Dependencies and services
+
+- The Java server uses Spring Boot Web and is built with Maven; Maven downloads
+  the Java dependencies declared in `project1/pom.xml`.
+- The browser uses Google Maps JavaScript API (including Maps, Marker, and
+  Places libraries) for map display, geocoding, and nearby-place search.
+- Firebase Authentication provides email/password sign-in, and Firebase
+  Realtime Database stores community reviews.
+- Optional test dependencies include Node.js test tooling and Playwright
+  (declared in the root `package.json`).
+
+### Download or clone
+
+Clone the course repository using its Git URL:
+
+```sh
+git clone <repository-url>
+cd cs3300-Group22-project1
+```
+
+Replace `<repository-url>` with the repository URL provided by the course or
+your team. If you already have the project files, open the repository root
+instead.
+
+### Build
+
+Build and run the Java tests from the `project1` directory:
+
+```sh
+cd project1
+mvn clean verify
+```
+
+The first Maven build needs internet access to download dependencies. To build
+without running tests, use `mvn clean package`.
+
+### Configuration and installation
+
+Set these environment variables in the same terminal session from which you
+will start the application:
+
+| Variable | Purpose |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY` | Browser key used to load Google Maps and Places. Restrict it to the required APIs and your local/deployed website referrers. |
+| `FIREBASE_API_KEY` | Firebase project's browser API key, used for Authentication. |
+| `FIREBASE_DATABASE_URL` | Firebase Realtime Database URL, shown in Firebase Console under **Realtime Database**. |
+
+For a Firebase setup, enable **Authentication > Sign-in method >
+Email/Password**, create a Realtime Database, and apply the project's review
+rules from [`firebase.database.rules.json`](firebase.database.rules.json) in
+**Realtime Database > Rules**. Without the database URL, authentication can be
+configured but community reviews will not work. See
+[Firebase authentication](#firebase-authentication) below for details.
+
+On macOS or Linux:
+
+```sh
+export GOOGLE_MAPS_API_KEY="your-google-maps-browser-key"
+export FIREBASE_API_KEY="your-firebase-browser-key"
+export FIREBASE_DATABASE_URL="https://your-project-default-rtdb.firebaseio.com"
+```
+
+On Windows PowerShell:
 
 ```powershell
+$env:GOOGLE_MAPS_API_KEY = "your-google-maps-browser-key"
+$env:FIREBASE_API_KEY = "your-firebase-browser-key"
+$env:FIREBASE_DATABASE_URL = "https://your-project-default-rtdb.firebaseio.com"
+```
+
+These are browser-facing API keys, not server-side passwords. Restrict each key
+by API and allowed website referrer; do not commit personal credentials or
+project-specific keys to source control.
+
+### Run
+
+From the `project1` directory, start the local server:
+
+```sh
 mvn spring-boot:run
 ```
 
-Open `http://localhost:8080/` or `http://localhost:8080/landingpage.html` for
-the login page. After signing in, the map is available at
-`http://localhost:8080/homepage.html`. Press `Ctrl+C` to stop
-the server.
+Open [http://localhost:8080/](http://localhost:8080/) in a browser. Sign in or
+create an account, then use
+[http://localhost:8080/homepage.html](http://localhost:8080/homepage.html) to
+search for places. Stop the server with `Ctrl+C`. Keep the terminal open while
+using the application; the required environment variables must be set in that
+terminal.
+
+### Troubleshooting
+
+- **The map or places do not load:** confirm `GOOGLE_MAPS_API_KEY` is set in the
+  server's environment, the required Google APIs are enabled, billing and
+  quotas are in order, and the key's API/referrer restrictions include the
+  local site. Restart the server after changing environment variables.
+- **Sign-in or registration is unavailable:** confirm
+  `FIREBASE_API_KEY` is set and Email/Password sign-in is enabled in Firebase.
+  Check the browser console and server output for configuration or service
+  errors.
+- **Reviews cannot be viewed or saved:** confirm `FIREBASE_DATABASE_URL` is the
+  correct Realtime Database URL and that the rules in
+  [`firebase.database.rules.json`](firebase.database.rules.json) are deployed.
+  Reviews require a signed-in user.
+- **Maven reports an unsupported Java version or is not found:** verify that
+  JDK 21 and Maven 3.6.3 or newer are installed and that `java` and `mvn` resolve
+  to those installations in the same terminal.
+- **Port 8080 is already in use:** stop the other process using that port or run
+  Spring Boot with a different port, for example
+  `mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081`, then open
+  the corresponding localhost URL.
+- **Google returns a Places API availability error:** the current integration
+  uses Places API (Legacy), which may not be enabled for newly created Google
+  Cloud projects. See [Google Places pagination](docs/google-places-pagination.md).
+
+### Optional test commands
+
+From the repository root, run the JavaScript unit and integration tests:
+
+```sh
+npm ci
+node --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+```
+
+The Chromium browser tests additionally need Playwright's browser:
+
+```sh
+npx playwright install chromium
+node --test tests/task20/browser-regression.cjs
+node tests/task20/browser-smoke.cjs
+```
+
+The tests use deterministic service fixtures and do not require live Google,
+Firebase, or Google Cloud credentials.
 
 ## Google Maps API
 
@@ -19,7 +195,6 @@ Set the Google Maps browser key in the local environment before starting the
 app. Restrict the key to the Maps JavaScript API and the website referrers used
 by the app.
 
-#
 ### Windows
 
 ```powershell
@@ -27,7 +202,6 @@ $env:GOOGLE_MAPS_API_KEY = "your-google-maps-browser-key"
 mvn spring-boot:run
 ```
 
-#
 ### Linux/MacOS
 ```sh
 $ export GOOGLE_MAPS_API_KEY="your-google-maps-browser-key"
@@ -181,10 +355,13 @@ disabled in that mode. Results show straight-line distance estimates calculated
 from the effective search center, while distance ranking sorts results nearest
 first.
 
+Google Places pagination support and the legacy API limitations are documented
+in [Google Places pagination](docs/google-places-pagination.md).
+
 Run its JavaScript tests from the repository root with Node.js 22:
 
 ```sh
-node --experimental-default-type=module --test tests/task18/*.test.mjs
+node --test tests/task18/*.test.mjs
 ```
 
 ## Search history (TASK-20)
@@ -197,8 +374,29 @@ are saved per account in the current browser. See
 Run all JavaScript tests with Node.js 22:
 
 ```sh
-node --experimental-default-type=module --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
+node --test tests/*.test.mjs tests/task18/*.test.mjs tests/task20/*.test.mjs
 ```
+
+Browser regression tests run the production pages in Chromium with deterministic
+Google Maps, Places, Firebase Auth, and Realtime Database fixtures:
+
+```sh
+npm ci
+npx playwright install chromium
+node --test tests/task20/browser-regression.cjs
+node tests/task20/browser-smoke.cjs
+```
+
+GitHub Actions installs Chromium with Linux dependencies and runs both browser
+suites. No Google, Firebase, or Google Cloud credentials are required.
 
 History also stores the effective geocoded search center for named-location
 replay, while keyword-only searches retain their original map center context.
+
+# Team Developers and Main Tasks: 
+1. Sergio Chavez - Authentication Setup/Code, Presentation Design, Testing Application
+2. Kevin Chen - Google Maps Setup, Lat/Long Input
+3. Renkai Chen - Searching / Search Filtering, Basic Map Pins, Frontend Design
+4. Lijie Liu - Map Integration, Search History, Testing & Documentation
+5. Landon Renaud - GCP hosting & CI/CD pipeline, User Review functionality
+6. James Tan - Search Improvements, Firebase Reviews, CI/CD, Presentation Content
