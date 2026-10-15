@@ -6,6 +6,7 @@ const firebaseConfigReady = fetch("/api/firebase-config").then(async (response) 
   return config;
 });
 
+// Send a fetch request to the firebase api using the firebase api key
 async function firebaseAuthRequest(endpoint, body) {
   const config = await firebaseConfigReady;
   const response = await fetch(
