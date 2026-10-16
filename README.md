@@ -4,6 +4,13 @@
 
 LocalLens is a app that lets you discover what's around you. It helps users find restaurants, shops, parks, and other points of interests. Users can search by location, adjust filters (e.g. place type, distance, price range, etc.), and view results on a interactive map. Users are also able to read reviews left by other members of the community and leave reviews of their own.
 
+## Prerequisites
+
+- Java 21
+- Maven
+- Node.js 22 for the JavaScript test suite
+
+## Build and run
 ## Release Notes
 
 ### Functionality delivered
