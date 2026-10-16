@@ -27,3 +27,7 @@
   border-color: #325dce;
   background: #eaf0ff;
 }
+
+gmp-advanced-marker.location-marker-selected {
+  filter: drop-shadow(0 0 0.35rem #325dcecc) saturate(1.35);
+}

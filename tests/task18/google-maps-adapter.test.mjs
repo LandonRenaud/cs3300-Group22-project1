@@ -10,6 +10,10 @@ class ElementStub {
     this.tagName = tagName;
     this.children = [];
     this.listeners = new Map();
+    this.classes = new Set();
+    this.classList = {
+      toggle: (name, enabled) => enabled ? this.classes.add(name) : this.classes.delete(name),
+    };
     this.value = '';
   }
 
@@ -31,7 +35,7 @@ class ElementStub {
   }
 }
 
-function setup(t) {
+function setup(t, onClose) {
   const previousDocument = globalThis.document;
   globalThis.document = { createElement: tagName => new ElementStub(tagName) };
   t.after(() => {
@@ -90,7 +94,7 @@ function setup(t) {
       removeListener(listener) { listener.remove(); },
     },
   };
-  return { adapter: createGoogleMapsAdapter(map, maps), map, maps, markers, windows };
+  return { adapter: createGoogleMapsAdapter(map, maps, { onClose }), map, maps, markers, windows };
 }
 
 function place(id, overrides = {}) {
@@ -181,13 +185,32 @@ test('click opens one shared popup with literal place text and selects the locat
   assert.deepEqual(markers[0].position, { lat: selectedPlace.lat, lng: selectedPlace.lng });
   assert.equal(markers[0].title, selectedPlace.name);
   assert.equal(markers[0].gmpClickable, true);
+  assert.equal(markers[0].classes.has('location-marker'), true);
   markers[0].emit('gmp-click');
   assert.deepEqual(selected, ['one']);
+  assert.equal(markers[0].classes.has('location-marker-selected'), true);
   assert.equal(windows[0].openCalls.at(-1).anchor, markers[0]);
   assert.equal(windows[0].openCalls.at(-1).map, map);
   for (const value of [selectedPlace.name, selectedPlace.address, '<b>park</b>', '4.5']) {
     assert.ok(windows[0].content.textContent.includes(value));
   }
+});
+
+test('selecting another marker and closing its popup clears the previous visual selection', t => {
+  let closeCalls = 0;
+  const { adapter, markers, windows } = setup(t, () => { closeCalls += 1; });
+  adapter.addMarker(location('one'), () => {});
+  adapter.addMarker(location('two'), () => {});
+
+  markers[0].emit('gmp-click');
+  markers[1].emit('gmp-click');
+  assert.equal(markers[0].classes.has('location-marker-selected'), false);
+  assert.equal(markers[1].classes.has('location-marker-selected'), true);
+
+  windows[0].emit('closeclick');
+  assert.equal(closeCalls, 1);
+  assert.equal(markers[1].classes.has('location-marker-selected'), false);
+  assert.equal(windows[0].closeCalls, 1);
 });
 
 test('hover popup closes on leave while a clicked popup stays open', t => {

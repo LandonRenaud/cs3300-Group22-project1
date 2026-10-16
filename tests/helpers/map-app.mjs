@@ -99,6 +99,7 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     getZoom() { return this.zoom; },
     setZoom(zoom) { this.zoom = zoom; },
     setCenter(position) { this.centers.push(position); this.center = position; },
+    panTo(position) { this.centers.push(position); this.center = position; },
     getCenter() { return this.center; },
     getBounds() { return this.bounds; },
   };
@@ -116,10 +117,18 @@ export async function setup(t, importLibrary = async () => ({}), userId = null, 
     },
     Geocoder: class { geocode(request, callback) { geocodes.push({ request, callback }); } },
     InfoWindow: class {
-      constructor() { windows.push(this); }
+      constructor() { this.listeners = new Map(); windows.push(this); }
       setContent(content) { this.content = content; }
       open(options) { this.options = options; }
       close() { this.options = null; }
+      addListener(name, callback) {
+        if (!this.listeners.has(name)) this.listeners.set(name, new Set());
+        this.listeners.get(name).add(callback);
+        return { remove: () => this.listeners.get(name)?.delete(callback) };
+      }
+      emit(name) {
+        for (const callback of [...(this.listeners.get(name) || [])]) callback();
+      }
     },
     marker: { AdvancedMarkerElement: class extends Element {
       constructor(options) { super(); Object.assign(this, options); markers.push(this); }

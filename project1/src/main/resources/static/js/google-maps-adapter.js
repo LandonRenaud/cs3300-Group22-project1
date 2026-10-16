@@ -38,11 +38,39 @@ function createPopup(location) {
   return content;
 }
 
-export function createGoogleMapsAdapter(map, maps) {
+export function createGoogleMapsAdapter(map, maps, { onClose } = {}) {
+  if (onClose !== undefined && typeof onClose !== "function") {
+    throw new TypeError("onClose must be a function.");
+  }
+
   const infoWindow = new maps.InfoWindow();
   let activeMarker = null;
   let pinnedMarker = null;
+  let selectedMarker = null;
   let fitListener = null;
+
+  function setSelectedMarker(marker) {
+    if (selectedMarker === marker) return;
+    selectedMarker?.classList?.toggle?.("location-marker-selected", false);
+    selectedMarker?.removeAttribute?.("aria-current");
+    selectedMarker = marker;
+    selectedMarker?.classList?.toggle?.("location-marker-selected", true);
+    if (selectedMarker) selectedMarker.setAttribute?.("aria-current", "true");
+  }
+
+  function clearPopupState() {
+    infoWindow.close();
+    activeMarker = null;
+    pinnedMarker = null;
+    setSelectedMarker(null);
+  }
+
+  if (typeof infoWindow.addListener === "function") {
+    infoWindow.addListener("closeclick", () => {
+      clearPopupState();
+      onClose?.();
+    });
+  }
 
   return {
     addMarker(location, onSelect = () => {}, markerOptions = {}) {
@@ -53,6 +81,8 @@ export function createGoogleMapsAdapter(map, maps) {
         title: location.name,
         gmpClickable: true
       });
+      marker.classList?.toggle?.("location-marker", true);
+      marker.setAttribute?.("aria-label", location.name);
       let removed = false;
       const open = () => {
         if (removed) return;
@@ -62,12 +92,14 @@ export function createGoogleMapsAdapter(map, maps) {
       };
       const select = () => {
         if (removed) return;
+        setSelectedMarker(marker);
         pinnedMarker = marker;
         open();
         onSelect();
       };
       const focus = ({ pan = false } = {}) => {
         if (removed) return;
+        setSelectedMarker(marker);
         pinnedMarker = marker;
         if (pan) map.panTo?.({ lat: location.lat, lng: location.lng });
         open();
@@ -89,11 +121,12 @@ export function createGoogleMapsAdapter(map, maps) {
       return {
         focus,
         close() {
-          if (activeMarker === marker && pinnedMarker === marker) {
+          if (activeMarker === marker) {
             infoWindow.close();
             activeMarker = null;
-            pinnedMarker = null;
           }
+          if (pinnedMarker === marker) pinnedMarker = null;
+          if (selectedMarker === marker) setSelectedMarker(null);
         },
         remove() {
           if (removed) return;
@@ -106,15 +139,14 @@ export function createGoogleMapsAdapter(map, maps) {
             activeMarker = null;
           }
           if (pinnedMarker === marker) pinnedMarker = null;
+          if (selectedMarker === marker) setSelectedMarker(null);
           marker.map = null;
         }
       };
     },
 
     close() {
-      infoWindow.close();
-      activeMarker = null;
-      pinnedMarker = null;
+      clearPopupState();
     },
 
     fitLocations(locations) {
