@@ -6,6 +6,7 @@ import { createSearchHistoryStore } from "./search-history-store.js";
 import { createSearchHistoryView } from "./search-history-view.js";
 import { formatDistance, haversineDistanceMeters, isValidCoordinate, sortLocationsByDistance } from "./distance-utils.mjs";
 
+// Getters
 let map_input_location = document.querySelector(".map-input-location");
 let location_form = document.querySelector(".location-input");
 let google_map = document.querySelector(".google-map");
