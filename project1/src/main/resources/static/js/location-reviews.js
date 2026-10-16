@@ -1,6 +1,7 @@
 import { firebaseConfigReady } from "./firebase-auth.js";
 import { canWriteReview, isValidReviewRating, prepareReviewDraft, summarizeReviews } from "./review-utils.mjs";
 
+// Get elements
 const status = document.querySelector(".reviews-status");
 const summary = document.querySelector(".reviews-summary");
 const list = document.querySelector(".reviews-list");
